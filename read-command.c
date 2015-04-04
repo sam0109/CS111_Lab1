@@ -5,13 +5,17 @@
 
 #include <error.h>
 
-/* FIXME: You may need to add #include directives, macro definitions,
-   static function definitions, etc.  
-*/
+//A linked list for command trees
+struct command_node
+{
+    struct command* command; //stores root of a command tree
+    struct command_node* n
+};
 
-/* FIXME: Define the type 'struct command_stream' here.  This should
-   complete the incomplete type declaration in command.h.  
-*/
+typedef struct command_stream
+{
+    
+};
 
 command_stream_t
 make_command_stream (int (*get_next_byte) (void *), void *get_next_byte_argument)
