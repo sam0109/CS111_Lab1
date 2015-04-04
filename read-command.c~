@@ -5,8 +5,6 @@
 
 #include <error.h>
 
-//Chandler was here
-
 /* FIXME: You may need to add #include directives, macro definitions,
    static function definitions, etc.  */
 
@@ -30,4 +28,10 @@ read_command_stream (command_stream_t s)
   /* FIXME: Replace this with your implementation too.  */
   error (1, 0, "command reading not yet implemented");
   return 0;
+}
+
+command_t
+generate_command_tree (char* input_string)
+{
+
 }
