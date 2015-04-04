@@ -9,7 +9,8 @@
 struct command_node
 {
     struct command* command; //stores root of a command tree
-    struct command_node* n
+    struct command_node* next;
+    struct command_node* cursor;
 };
 
 typedef struct command_stream
