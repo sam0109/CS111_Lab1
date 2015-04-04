@@ -13,6 +13,9 @@ struct command_node
     struct command_node* cursor;
 };
 
+
+typedef enum {WORD, OPEN_PAREN, CLOSE_PAREN, OPERATOR, UNKNOWN} word_type;
+
 typedef struct command_stream
 {
     
@@ -41,14 +44,37 @@ read_command_stream (command_stream_t s)
 
 // a function to find the next word in the command
 char*
-scan_to_next_word(char* start)
+scan_to_next_word(char* start, word_type *word)
 {
 	
 }
+
 command_t
 generate_command_tree (char* input_string)
 {
-
+	word_type word;
+	char* beginning_of_next_word = input_string;
+	char* end_of_next_word = scan_to_next_word(input_string, *word);
+	while(end_of_next_word != NULL)
+	{
+		switch(word)
+		{
+			case WORD:
+				break;
+			case OPEN_PAREN:
+				break;
+			case CLOSE_PAREN:
+				break;
+			case OPERATOR:
+				break;
+			case UNKNOWN:
+				break;
+			case defaut:
+				break;
+		}
+		char* beginning_of_next_word = end_of_next_word;
+		char* end_of_next_word = scan_to_next_word(end_of_next_word, *word);
+	}
 /*
 	1)if a simple command, push it onto the command stack
 	2)if "(", push it onto the operator stack
