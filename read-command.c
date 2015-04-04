@@ -34,7 +34,7 @@ read_command_stream (command_stream_t s)
     return 0;
 }
 
-
+// a function to find the next word in the command
 char*
 scan_to_next_word(char* start)
 {
@@ -43,6 +43,7 @@ scan_to_next_word(char* start)
 command_t
 generate_command_tree (char* input_string)
 {
+
 /*
 	1)if a simple command, push it onto the command stack
 	2)if "(", push it onto the operator stack
