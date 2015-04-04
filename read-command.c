@@ -29,3 +29,9 @@ read_command_stream (command_stream_t s)
   error (1, 0, "command reading not yet implemented");
   return 0;
 }
+
+command_t
+generate_command_tree (char* input_string)
+{
+
+}
