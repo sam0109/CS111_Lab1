@@ -48,6 +48,7 @@ push_new_command(struct stack* head, enum command_type in_command)
 	new_command.type = AND_COMMAND;
 	new_command.status = -1;
 	push(head, new_command);
+	return;
 }
 
 command_stream_t
@@ -78,10 +79,52 @@ scan_to_next_word(char* start, int beginning_of_next_word, enum word_type word) 
 	return 0;
 }
 
-command_t
+bool
+operator_test(command_t a, command_t b)
+{
+	if(a.type == SUBSHELL_COMMAND && b.type != SUBSHELL_COMMAND)
+		return true;
+	if(b.type == SUBSHELL_COMMAND)
+		return false;
+	if(a.type == SEQUENCE_COMMAND)
+		return true;
+	if(b.type == SEQUENCE_COMMAND)
+		return false;
+	if(a.type == OR_COMMAND || a.type == AND_COMMAND)
+		return true;
+	if(b.type == OR_COMMAND || b.type == AND_COMMAND)
+		return false;
+	return true;
+}
+
+void
 pop_and_combine(command_t command, struct stack operators, struct stack commands)
 {
-	return 0;
+	while(operator_test(command, operators->command))
+	{
+		command_t popped_operator = pop(operators);
+		popped_operator.u->command[1] = pop(commands);
+		popped_operator.u->command[0] = pop(commands);
+		push(popped_operator, command);
+	}
+	if(command.type == SUBSHELL_COMMAND && operators->command.type == SUBSHELL_COMMAND)
+	{
+		free(pop(operators));
+		command.u->subshell_command = pop(commands);
+		push(commands, command);
+	}
+	else
+	{
+		push(operators, command);
+	}
+	return;
+	/*
+	   	 	 a)pop all operators with >= precidence off operator stack
+	    	 b)for each operator, pop 2 commands off command stacks
+	    	 c)combine new command and put it on command stack
+	    	 d)stop when reach and operator with lower precidence or a "("
+	    	 e)push new operator onto operator stack
+		 */
 }
 
 command_t
@@ -120,45 +163,63 @@ generate_command_tree (char* input_string)
 			case SUBSHELL_COMMAND:
 				if(input_string[beginning_of_next_word] == '(')
 				{
-					struct command new_command = malloc(sizeof(struct command));
-					new_command.type = SUBSHELL_COMMAND;
-					new_command.status = -1;
-					end_of_next_word = scan_to_next_word(input_string[beginning_of_next_word], &beginning_of_next_word, &word);
+					push_new_command(operators, SUBSHELL_COMMAND);
 				}
 				else
 				{
 					pop_and_combine();
 				}
+				end_of_next_word = scan_to_next_word(input_string[beginning_of_next_word], &beginning_of_next_word, &word);
 				break;
 			case AND_COMMAND:
 				if(operators.command == 0)
 				{
 					push_new_command(operators, AND_COMMAND);
 				}
+				else
+				{
+					pop_and_combine();
+				}
+				end_of_next_word = scan_to_next_word(input_string[beginning_of_next_word], &beginning_of_next_word, &word);
 				break;
 			case SEQUENCE_COMMAND:
 				if(operators.command == 0)
 				{
 					push_new_command(operators, SEQUENCE_COMMAND);
 				}
+				else
+				{
+					pop_and_combine();
+				}
+				end_of_next_word = scan_to_next_word(input_string[beginning_of_next_word], &beginning_of_next_word, &word);
 				break;
+
 			case OR_COMMAND:
 				if(operators.command == 0)
 				{
 					push_new_command(operators, OR_COMMAND);
 				}
+				else
+				{
+					pop_and_combine();
+				}
+				end_of_next_word = scan_to_next_word(input_string[beginning_of_next_word], &beginning_of_next_word, &word);
 				break;
 			case PIPE_COMMAND:
 				if(operators.command == 0)
 				{
 					push_new_command(operators, PIPE_COMMAND);
 				}
+				else
+				{
+					pop_and_combine();
+				}
+				end_of_next_word = scan_to_next_word(input_string[beginning_of_next_word], &beginning_of_next_word, &word);
 				break;
 			default:
 				break;
 		}
-		char* beginning_of_next_word = end_of_next_word;
-		char* end_of_next_word = scan_to_next_word(end_of_next_word, *word);
+		pop_and_combine();
 	}
 /*
 	1)if a simple command, push it onto the command stack
@@ -166,11 +227,7 @@ generate_command_tree (char* input_string)
 	3)if an operator and operator stack is empty
 	     a)push it onto the operator stack
 	4)if an operator and operator stack is not empty
-    	 a)pop all operators with >= precidence off operator stack 
-    	 b)for each operator, pop 2 commands off command stacks
-    	 c)combine new command and put it on command stack
-    	 d)stop when reach and operator with lower precidence or a "("
-    	 e)push new operator onto operator stack
+		pop_and_combine
 	5)if encounter ")"
     	 a)pop operators off stack like 4a until see a matching "("
     	 b)create subshell command by popping top command from command stack
