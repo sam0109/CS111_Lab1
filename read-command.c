@@ -44,9 +44,10 @@ push(struct stack* head, command_t new_command)
 void
 push_new_command(struct stack* head, enum command_type in_command)
 {
-	struct command new_command = malloc(sizeof(struct command));
-	new_command.type = AND_COMMAND;
+	command_t new_command = malloc(sizeof(struct command));
+	new_command.type = in_command;
 	new_command.status = -1;
+	new_command.u->subshell_command = 0;
 	push(head, new_command);
 	return;
 }
@@ -74,9 +75,51 @@ read_command_stream (command_stream_t s)
 
 // a function to find the next word in the command
 int
-scan_to_next_word(char* start, int beginning_of_next_word, enum word_type word) //return the number of characters in the next word (return 4 for "this")
+scan_to_next_word(char* string, int beginning_of_next_word, enum word_type word) //return the number of characters in the next word (return 4 for "this is a test")
 {																			// and find the beginning of the next word
-	return 0;
+	while(string[beginning_of_next_word] != '\0' && string[beginning_of_next_word] == ' ')
+	{
+		beginning_of_next_word++;
+	}
+	if(string[beginning_of_next_word] == '|' && string[beginning_of_next_word + 1] == '|')						//check to see if it's an operator
+	{
+		word = OR_COMMAND;
+		return 1;
+	}
+	if(string[beginning_of_next_word] == '&' && string[beginning_of_next_word + 1] == '&')
+	{
+		word = AND_COMMAND;
+		return 1;
+	}
+	if(string[beginning_of_next_word] == '|')
+	{
+		word = PIPE_COMMAND;
+		return 1;
+	}
+	if(string[beginning_of_next_word] == '(' || string[beginning_of_next_word] == ')')
+	{
+		word = SUBSHELL_COMMAND;
+		return 1;
+	}
+	if(string[beginning_of_next_word] == ';')
+	{
+		word = SEQUENCE_COMMAND;
+		return 1;
+	}
+
+	int current_char = beginning_of_next_word;
+	while(string[current_char] != '\0' &&
+		  string[current_char] != ' ' &&
+		  string[current_char] != '(' &&
+		  string[current_char] != ')' &&
+		  string[current_char] != ';' &&
+		  string[current_char] != '|' &&
+		  string[current_char] != '&'
+		 )
+	{
+		current_char++;
+	}
+	return current_char;
 }
 
 bool
@@ -84,7 +127,7 @@ operator_test(command_t a, command_t b)
 {
 	if(a.type == SUBSHELL_COMMAND && b.type != SUBSHELL_COMMAND)
 		return true;
-	if(b.type == SUBSHELL_COMMAND)
+	if(b.type == SUBSHELL_COMMAND && b.u->subshell_command == 0)
 		return false;
 	if(a.type == SEQUENCE_COMMAND)
 		return true;
@@ -142,7 +185,7 @@ generate_command_tree (char* input_string)
 		switch(word)
 		{
 			case SIMPLE_COMMAND:
-				struct command new_command = malloc(sizeof(struct command));
+				command_t new_command = malloc(sizeof(struct command));
 				new_command.type = SIMPLE_COMMAND;
 				new_command.status = -1;
 				int j = 0;
@@ -160,6 +203,7 @@ generate_command_tree (char* input_string)
 				}while(word == SIMPLE_COMMAND);
 				push(commands, new_command);
 				break;
+
 			case SUBSHELL_COMMAND:
 				if(input_string[beginning_of_next_word] == '(')
 				{
@@ -167,10 +211,15 @@ generate_command_tree (char* input_string)
 				}
 				else
 				{
-					pop_and_combine();
+					command_t new_command = malloc(sizeof(struct command));
+					new_command.type = SUBSHELL_COMMAND;
+					new_command.status = -1;
+					new_command.u->subshell_command = 0;
+					pop_and_combine(new_command, operators, commands);
 				}
 				end_of_next_word = scan_to_next_word(input_string[beginning_of_next_word], &beginning_of_next_word, &word);
 				break;
+
 			case AND_COMMAND:
 				if(operators.command == 0)
 				{
@@ -178,10 +227,14 @@ generate_command_tree (char* input_string)
 				}
 				else
 				{
-					pop_and_combine();
+					command_t new_command = malloc(sizeof(struct command));
+					new_command.type = AND_COMMAND;
+					new_command.status = -1;
+					pop_and_combine(new_command, operators, commands);
 				}
 				end_of_next_word = scan_to_next_word(input_string[beginning_of_next_word], &beginning_of_next_word, &word);
 				break;
+
 			case SEQUENCE_COMMAND:
 				if(operators.command == 0)
 				{
@@ -189,7 +242,10 @@ generate_command_tree (char* input_string)
 				}
 				else
 				{
-					pop_and_combine();
+					command_t new_command = malloc(sizeof(struct command));
+					new_command.type = SEQUENCE_COMMAND;
+					new_command.status = -1;
+					pop_and_combine(new_command, operators, commands);
 				}
 				end_of_next_word = scan_to_next_word(input_string[beginning_of_next_word], &beginning_of_next_word, &word);
 				break;
@@ -201,10 +257,14 @@ generate_command_tree (char* input_string)
 				}
 				else
 				{
-					pop_and_combine();
+					command_t new_command = malloc(sizeof(struct command));
+					new_command.type = OR_COMMAND;
+					new_command.status = -1;
+					pop_and_combine(new_command, operators, commands);
 				}
 				end_of_next_word = scan_to_next_word(input_string[beginning_of_next_word], &beginning_of_next_word, &word);
 				break;
+
 			case PIPE_COMMAND:
 				if(operators.command == 0)
 				{
@@ -212,14 +272,18 @@ generate_command_tree (char* input_string)
 				}
 				else
 				{
-					pop_and_combine();
+					command_t new_command = malloc(sizeof(struct command));
+					new_command.type = PIPE_COMMAND;
+					new_command.status = -1;
+					pop_and_combine(new_command, operators, commands);
 				}
 				end_of_next_word = scan_to_next_word(input_string[beginning_of_next_word], &beginning_of_next_word, &word);
 				break;
 			default:
 				break;
 		}
-		pop_and_combine();
+		pop_and_combine(pop(operators), operators, commands);
+		return pop(commands);
 	}
 /*
 	1)if a simple command, push it onto the command stack
