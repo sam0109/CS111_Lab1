@@ -4,6 +4,7 @@
 #include "command-internals.h"
 
 #include <error.h>
+#include <stdlib.h>
 
 //A linked list for command trees
 struct command_node
@@ -24,30 +25,33 @@ typedef struct command_stream
     
 };
 
-struct stack*
-pop(struct stack* head)
+command_t
+pop(struct stack *head)
 {
 	struct stack* temp = head;
 	head = head->down;
-	return temp;
+	command_t command = temp->command;
+	free(temp);
+	return command;
 }
 
 void
-push(struct stack* head, command_t new_command)
+push(struct stack *head, command_t new_command)
 {
 	struct stack* new_head = malloc(sizeof(struct stack));
-	new_head.command = new_command;
+	new_head->command = new_command;
 	new_head->down = head;
 	head = new_head;
+	return;
 }
 
 void
 push_new_command(struct stack* head, enum command_type in_command)
 {
 	command_t new_command = malloc(sizeof(struct command));
-	new_command.type = in_command;
-	new_command.status = -1;
-	new_command.u->subshell_command = 0;
+	new_command->type = in_command;
+	new_command->status = -1;
+	new_command->u.subshell_command = 0;
 	push(head, new_command);
 	return;
 }
@@ -75,39 +79,39 @@ read_command_stream (command_stream_t s)
 
 // a function to find the next word in the command
 int
-scan_to_next_word(char* string, int beginning_of_next_word, enum word_type word) //return the number of characters in the next word (return 4 for "this is a test")
+scan_to_next_word(char *string, int *beginning_of_next_word, enum command_type *word) //return the number of characters in the next word (return 4 for "this is a test")
 {																			// and find the beginning of the next word
-	while(string[beginning_of_next_word] != '\0' && string[beginning_of_next_word] == ' ')
+	while(string[*beginning_of_next_word] != '\0' && string[*beginning_of_next_word] == ' ')
 	{
 		beginning_of_next_word++;
 	}
-	if(string[beginning_of_next_word] == '|' && string[beginning_of_next_word + 1] == '|')						//check to see if it's an operator
+	if(string[*beginning_of_next_word] == '|' && string[*beginning_of_next_word + 1] == '|')						//check to see if it's an operator
 	{
-		word = OR_COMMAND;
+		*word = OR_COMMAND;
 		return 1;
 	}
-	if(string[beginning_of_next_word] == '&' && string[beginning_of_next_word + 1] == '&')
+	if(string[*beginning_of_next_word] == '&' && string[*beginning_of_next_word + 1] == '&')
 	{
-		word = AND_COMMAND;
+		*word = AND_COMMAND;
 		return 1;
 	}
-	if(string[beginning_of_next_word] == '|')
+	if(string[*beginning_of_next_word] == '|')
 	{
-		word = PIPE_COMMAND;
+		*word = PIPE_COMMAND;
 		return 1;
 	}
-	if(string[beginning_of_next_word] == '(' || string[beginning_of_next_word] == ')')
+	if(string[*beginning_of_next_word] == '(' || string[*beginning_of_next_word] == ')')
 	{
-		word = SUBSHELL_COMMAND;
+		*word = SUBSHELL_COMMAND;
 		return 1;
 	}
-	if(string[beginning_of_next_word] == ';')
+	if(string[*beginning_of_next_word] == ';')
 	{
-		word = SEQUENCE_COMMAND;
+		*word = SEQUENCE_COMMAND;
 		return 1;
 	}
 
-	int current_char = beginning_of_next_word;
+	int current_char = *beginning_of_next_word;
 	while(string[current_char] != '\0' &&
 		  string[current_char] != ' ' &&
 		  string[current_char] != '(' &&
@@ -125,35 +129,35 @@ scan_to_next_word(char* string, int beginning_of_next_word, enum word_type word)
 bool
 operator_test(command_t a, command_t b)
 {
-	if(a.type == SUBSHELL_COMMAND && b.type != SUBSHELL_COMMAND)
+	if(a->type == SUBSHELL_COMMAND && b->type != SUBSHELL_COMMAND)
 		return true;
-	if(b.type == SUBSHELL_COMMAND && b.u->subshell_command == 0)
+	if(b->type == SUBSHELL_COMMAND && b->u.subshell_command == 0)
 		return false;
-	if(a.type == SEQUENCE_COMMAND)
+	if(a->type == SEQUENCE_COMMAND)
 		return true;
-	if(b.type == SEQUENCE_COMMAND)
+	if(b->type == SEQUENCE_COMMAND)
 		return false;
-	if(a.type == OR_COMMAND || a.type == AND_COMMAND)
+	if(a->type == OR_COMMAND || a->type == AND_COMMAND)
 		return true;
-	if(b.type == OR_COMMAND || b.type == AND_COMMAND)
+	if(b->type == OR_COMMAND || b->type == AND_COMMAND)
 		return false;
 	return true;
 }
 
 void
-pop_and_combine(command_t command, struct stack operators, struct stack commands)
+pop_and_combine(command_t command, struct stack *operators, struct stack *commands)
 {
 	while(operator_test(command, operators->command))
 	{
 		command_t popped_operator = pop(operators);
-		popped_operator.u->command[1] = pop(commands);
-		popped_operator.u->command[0] = pop(commands);
-		push(popped_operator, command);
+		popped_operator->u.command[1] = pop(commands);
+		popped_operator->u.command[0] = pop(commands);
+		push(commands, popped_operator);
 	}
-	if(command.type == SUBSHELL_COMMAND && operators->command.type == SUBSHELL_COMMAND)
+	if(command->type == SUBSHELL_COMMAND && operators->command->type == SUBSHELL_COMMAND)
 	{
 		free(pop(operators));
-		command.u->subshell_command = pop(commands);
+		command->u.subshell_command = pop(commands);
 		push(commands, command);
 	}
 	else
@@ -171,35 +175,37 @@ pop_and_combine(command_t command, struct stack operators, struct stack commands
 }
 
 command_t
-generate_command_tree (char* input_string)
+generate_command_tree (char *input_string)
 {
 	enum command_type word;
-	struct stack operators = malloc(sizeof(struct stack));
-	operators.command = 0;
-	struct stack commands = malloc(sizeof(struct stack));
-	commands.command = 0;
+	struct stack* operators = malloc(sizeof(struct stack));
+	operators->command = 0;
+	struct stack* commands = malloc(sizeof(struct stack));
+	commands->command = 0;
 	int beginning_of_next_word = 0;
-	int end_of_next_word = scan_to_next_word(input_string[beginning_of_next_word], &beginning_of_next_word, &word);
+	int end_of_next_word = scan_to_next_word(&input_string[beginning_of_next_word], &beginning_of_next_word, &word);
 	while(end_of_next_word != beginning_of_next_word)
 	{
 		switch(word)
 		{
-			case SIMPLE_COMMAND:
+			case SIMPLE_COMMAND: ;
 				command_t new_command = malloc(sizeof(struct command));
-				new_command.type = SIMPLE_COMMAND;
-				new_command.status = -1;
+				new_command->type = SIMPLE_COMMAND;
+				new_command->status = -1;
 				int j = 0;
 				do
 				{
 					int word_len = end_of_next_word - beginning_of_next_word;
-					new_command.u->word[j] = malloc(word_len + 1);
-					for (int i = 0; i < word_len; i++)
+					new_command->u.word[j] = malloc(word_len + 1);
+					int i = 0;
+					while(i < word_len)
 					{
-						new_command.u->word[j][i] = input_string[beginning_of_next_word + i];
+						new_command->u.word[j][i] = input_string[beginning_of_next_word + i];
+						i++;
 					}
-					new_command.u->word[j][word_len] = '\0';
+					new_command->u.word[j][word_len] = '\0';
 					j++;
-					end_of_next_word = scan_to_next_word(input_string[beginning_of_next_word], &beginning_of_next_word, &word);
+					end_of_next_word = scan_to_next_word(&input_string[beginning_of_next_word], &beginning_of_next_word, &word);
 				}while(word == SIMPLE_COMMAND);
 				push(commands, new_command);
 				break;
@@ -212,72 +218,72 @@ generate_command_tree (char* input_string)
 				else
 				{
 					command_t new_command = malloc(sizeof(struct command));
-					new_command.type = SUBSHELL_COMMAND;
-					new_command.status = -1;
-					new_command.u->subshell_command = 0;
+					new_command->type = SUBSHELL_COMMAND;
+					new_command->status = -1;
+					new_command->u.subshell_command = 0;
 					pop_and_combine(new_command, operators, commands);
 				}
-				end_of_next_word = scan_to_next_word(input_string[beginning_of_next_word], &beginning_of_next_word, &word);
+				end_of_next_word = scan_to_next_word(&input_string[beginning_of_next_word], &beginning_of_next_word, &word);
 				break;
 
 			case AND_COMMAND:
-				if(operators.command == 0)
+				if(operators->command == 0)
 				{
 					push_new_command(operators, AND_COMMAND);
 				}
 				else
 				{
 					command_t new_command = malloc(sizeof(struct command));
-					new_command.type = AND_COMMAND;
-					new_command.status = -1;
+					new_command->type = AND_COMMAND;
+					new_command->status = -1;
 					pop_and_combine(new_command, operators, commands);
 				}
-				end_of_next_word = scan_to_next_word(input_string[beginning_of_next_word], &beginning_of_next_word, &word);
+				end_of_next_word = scan_to_next_word(&input_string[beginning_of_next_word], &beginning_of_next_word, &word);
 				break;
 
 			case SEQUENCE_COMMAND:
-				if(operators.command == 0)
+				if(operators->command == 0)
 				{
 					push_new_command(operators, SEQUENCE_COMMAND);
 				}
 				else
 				{
 					command_t new_command = malloc(sizeof(struct command));
-					new_command.type = SEQUENCE_COMMAND;
-					new_command.status = -1;
+					new_command->type = SEQUENCE_COMMAND;
+					new_command->status = -1;
 					pop_and_combine(new_command, operators, commands);
 				}
-				end_of_next_word = scan_to_next_word(input_string[beginning_of_next_word], &beginning_of_next_word, &word);
+				end_of_next_word = scan_to_next_word(&input_string[beginning_of_next_word], &beginning_of_next_word, &word);
 				break;
 
 			case OR_COMMAND:
-				if(operators.command == 0)
+				if(operators->command == 0)
 				{
 					push_new_command(operators, OR_COMMAND);
 				}
 				else
 				{
 					command_t new_command = malloc(sizeof(struct command));
-					new_command.type = OR_COMMAND;
-					new_command.status = -1;
+					new_command->type = OR_COMMAND;
+					new_command->status = -1;
 					pop_and_combine(new_command, operators, commands);
 				}
-				end_of_next_word = scan_to_next_word(input_string[beginning_of_next_word], &beginning_of_next_word, &word);
+				end_of_next_word = scan_to_next_word(&input_string[beginning_of_next_word], &beginning_of_next_word, &word);
 				break;
 
 			case PIPE_COMMAND:
-				if(operators.command == 0)
+				if(operators->command == 0)
 				{
 					push_new_command(operators, PIPE_COMMAND);
 				}
 				else
 				{
 					command_t new_command = malloc(sizeof(struct command));
-					new_command.type = PIPE_COMMAND;
-					new_command.status = -1;
+					new_command->type = PIPE_COMMAND;
+					new_command->status = -1;
 					pop_and_combine(new_command, operators, commands);
 				}
-				end_of_next_word = scan_to_next_word(input_string[beginning_of_next_word], &beginning_of_next_word, &word);
+				end_of_next_word = scan_to_next_word(&input_string[beginning_of_next_word], &beginning_of_next_word, &word);
 				break;
 			default:
 				break;
