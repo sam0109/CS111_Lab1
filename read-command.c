@@ -25,6 +25,22 @@ typedef struct command_stream
     
 };
 
+void
+free_command_t_recursive(command_t to_free)
+{
+	free(to_free->input);
+	free(to_free->output);
+	free_command_t_recursive(to_free->u.command[0]);
+	free_command_t_recursive(to_free->u.command[1]);
+	free_command_t_recursive(to_free->u.subshell_command);
+	int n = to_free->words - 1;
+	while(n >= 0)
+	{
+		free(to_free->u.word[n]);
+		n--;
+	}
+}
+
 command_t
 pop(struct stack *head)
 {
@@ -79,13 +95,13 @@ read_command_stream (command_stream_t s)
 
 // a function to find the next word in the command
 int
-scan_to_next_word(char *string, int *beginning_of_next_word, enum command_type *word) //return the number of characters in the next word (return 4 for "this is a test")
-{																			// and find the beginning of the next word
-	while(string[*beginning_of_next_word] != '\0' && string[*beginning_of_next_word] == ' ')
+scan_to_next_word(char *string, int *beginning_of_next_word, enum command_type *word) 	//return the number of characters in the next word (return 4 for "this is a test")
+{																						// and find the beginning of the next word
+	while(string[*beginning_of_next_word] != '\0' && string[*beginning_of_next_word] == ' ') 	// get rid of leading spaces
 	{
 		beginning_of_next_word++;
 	}
-	if(string[*beginning_of_next_word] == '|' && string[*beginning_of_next_word + 1] == '|')						//check to see if it's an operator
+	if(string[*beginning_of_next_word] == '|' && string[*beginning_of_next_word + 1] == '|')	//check to see if it's an operator
 	{
 		*word = OR_COMMAND;
 		return 1;
@@ -110,6 +126,7 @@ scan_to_next_word(char *string, int *beginning_of_next_word, enum command_type *
 		*word = SEQUENCE_COMMAND;
 		return 1;
 	}
+	*word = SIMPLE_COMMAND;  //otherwise it's a simple command
 
 	int current_char = *beginning_of_next_word;
 	while(string[current_char] != '\0' &&
@@ -118,7 +135,9 @@ scan_to_next_word(char *string, int *beginning_of_next_word, enum command_type *
 		  string[current_char] != ')' &&
 		  string[current_char] != ';' &&
 		  string[current_char] != '|' &&
-		  string[current_char] != '&'
+		  string[current_char] != '&' &&
+		  string[current_char] != '<' &&
+		  string[current_char] != '>'
 		 )
 	{
 		current_char++;
@@ -156,7 +175,7 @@ pop_and_combine(command_t command, struct stack *operators, struct stack *comman
 	}
 	if(command->type == SUBSHELL_COMMAND && operators->command->type == SUBSHELL_COMMAND)
 	{
-		free(pop(operators));
+		free_command_t_recursive(pop(operators));
 		command->u.subshell_command = pop(commands);
 		push(commands, command);
 	}
@@ -178,6 +197,8 @@ command_t
 generate_command_tree (char *input_string)
 {
 	enum command_type word;
+	bool next_word_is_input = false;
+	bool next_word_is_output = false;
 	struct stack* operators = malloc(sizeof(struct stack));
 	operators->command = 0;
 	struct stack* commands = malloc(sizeof(struct stack));
@@ -190,23 +211,65 @@ generate_command_tree (char *input_string)
 		{
 			case SIMPLE_COMMAND: ;
 				command_t new_command = malloc(sizeof(struct command));
+				int size_of_command = 0;
+				int max_size_of_command = 3;
+				new_command->u.word = malloc(max_size_of_command);
 				new_command->type = SIMPLE_COMMAND;
 				new_command->status = -1;
 				int j = 0;
 				do
 				{
-					int word_len = end_of_next_word - beginning_of_next_word;
-					new_command->u.word[j] = malloc(word_len + 1);
-					int i = 0;
-					while(i < word_len)
-					{
-						new_command->u.word[j][i] = input_string[beginning_of_next_word + i];
-						i++;
+					if(size_of_command >= max_size_of_command - 1){
+						max_size_of_command += 3;
+						realloc(new_command->u.word, max_size_of_command);
 					}
-					new_command->u.word[j][word_len] = '\0';
+					int word_len = end_of_next_word - beginning_of_next_word;
+					int i = 0;
+					if(next_word_is_input)
+					{
+						new_command->input = malloc(word_len + 1);
+						while(i < word_len)
+						{
+							new_command->input[i] = input_string[beginning_of_next_word + i];
+							i++;
+						}
+						new_command->input[word_len] = '\0';
+						next_word_is_input = false;
+					}
+					if(next_word_is_output)
+					{
+						new_command->output = malloc(word_len + 1);
+						while(i < word_len)
+						{
+							new_command->output[i] = input_string[beginning_of_next_word + i];
+							i++;
+						}
+						new_command->output[word_len] = '\0';
+						next_word_is_output = false;
+					}
+					if(input_string[beginning_of_next_word] == '<')
+					{
+						next_word_is_input = true;
+					}
+					else if(input_string[beginning_of_next_word] == '>')
+					{
+						next_word_is_output = true;
+					}
+					else
+					{
+						new_command->u.word[j] = malloc(word_len + 1);
+						while(i < word_len)
+						{
+							new_command->u.word[j][i] = input_string[beginning_of_next_word + i];
+							i++;
+						}
+						new_command->u.word[j][word_len] = '\0';
+					}
 					j++;
+					size_of_command++;
 					end_of_next_word = scan_to_next_word(&input_string[beginning_of_next_word], &beginning_of_next_word, &word);
 				}while(word == SIMPLE_COMMAND);
+				new_command->words = size_of_command;
 				push(commands, new_command);
 				break;
 

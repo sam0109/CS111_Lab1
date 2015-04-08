@@ -22,6 +22,9 @@ struct command
   char *input;
   char *output;
 
+  //number of words in the array
+  int words;
+
   union
   {
     // for AND_COMMAND, SEQUENCE_COMMAND, OR_COMMAND, PIPE_COMMAND:
