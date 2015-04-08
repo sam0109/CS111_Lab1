@@ -9,34 +9,217 @@
 struct command_node
 {
     struct command* command; //stores root of a command tree
-    struct command_node* next;
-    struct command_node* cursor;
+    struct command_node* next; //
 };
 
 typedef struct command_stream
 {
-    
+    struct command_node *head;
+    struct command_node *tail;
+    struct command_node* cursor;
 };
 
 command_stream_t
 make_command_stream (int (*get_next_byte) (void *), void *get_next_byte_argument)
-{
-    /* FIXME: Replace this with your implementation.  You may need to
-       add auxiliary functions and otherwise modify the source code.
-       You can also use external functions defined in the GNU C Library.  
-    */
+{   
+	struct command_stream* s = malloc(sizeof(struct command_stream));
+	
+    char c = NULL;
+    int bufferSize = 100;
+    char* buffer = (char*)malloc(bufferSize*sizeof(char));
+    int n = 0;
 
-    error (1, 0, "command reading not yet implemented");
-    return 0;
+    int isCommented = 0;
+	int newLineCount = 0;
+	int inSubshell = 0;
+	
+	int andCount = 0;
+	int commandCount = 0;
+
+    while ((c = get_next_byte(get_next_byte_argument)) != EOF)
+    {
+        if((n+1) == bufferSize)
+        {
+			//n+2 necessary to handle special cases
+            bufferSize = bufferSize * 10;
+            buffer = (char*)realloc(buffer, bufferSize*sizeof(char));
+        }
+
+        if( c == '#')
+        {
+            isCommented = 1;
+        }
+        else if ( c == '\n')
+        {
+            if(n == 0)
+            {
+                continue;
+            }
+            
+            if(isCommented == 1)
+            {
+                isCommented = 0;
+            }
+            
+            if(andCount == 1)
+            {
+            	//TODO
+            	fprintf(stderr,": & cannot be its own line \n");
+				exit(0);
+            }
+            
+            switch(buffer[n-1])
+            {
+                case '&':
+					if( n - 2 >= 0)
+					{
+						if(buffer[n-2] != '&')
+						{
+							newLineCount++;
+						}
+					}
+                    break;
+                case '|':
+                    break;
+				case '<':
+					//TODO
+					fprintf(stderr,": No new line after < \n");
+    				exit(0);
+					break;
+				case '>':
+					//TODO
+					fprintf(stderr,"': No new line after >\n");
+    				exit(0);
+					break;
+				default:
+					if( inSubshell == 0)
+					{
+						newLineCount++;
+					}
+					break;
+            }
+            
+            if(newLineCount == 2)
+            {
+            	newLineCount = 0;
+            	buffer[n] = '\0';
+            	
+            	struct command_node* cn = malloc(sizeof(struct command_node));
+            	cn->command = generate_command_tree(buffer);
+            	cn->next = NULL;
+            	
+            	if(commandCount == 0)
+            	{
+            		s->head= cn;
+            		s->cursor = s->head;
+            		s->tail = cn;
+            	}
+            	else
+            	{
+            		s->tail->next = cn;
+            		s->tail = s->tail->next;
+            	}
+            	
+            	commandCount++;
+            	n = 0;
+            }
+        }
+        else
+        {
+            if(isCommented == 0)
+            {
+				if(c == '(')
+				{
+					inSubshell = 1;
+				}
+				else if( c == ')')
+				{
+					inSubshell = 0;
+				}
+				
+				if(newLineCount == 1)
+				{
+					//Determines if new Line is a complete command
+					if(c != '|' || c != '<'|| c != '>' || c != ')' || c != ';')
+					{
+						if(c == '&')
+						{
+							//TODO this case needs work!!!
+							andCount++;
+							
+							if(andCount == 2)
+							{
+								buffer[n] = '&';
+								n++;
+								newLineCount = 0;
+								andCount = 0;
+							}
+						}
+						else
+						{
+							if(andCount == 1)
+							{
+								buffer[n] = ';';
+								n++;
+								buffer[n] = '&';
+								n++;
+								newLineCount = 0;
+								andCount = 0;
+							}
+							else if(n > 0 && buffer[n-1] != ';')
+							{
+								newLineCount = 0;
+								buffer[n] = ';';
+								n++;
+							}
+						}
+					}
+				}
+				
+                buffer[n] = c;
+                n++;
+            }
+        }
+    }
+    
+    if(n > 0)
+    {
+    	buffer[n] = '\0';
+    	
+    	struct command_node* cn = malloc(sizeof(struct command_node));
+    	cn->command = generate_command_tree(buffer);
+    	cn->next = NULL;
+    	
+    	if(commandCount == 0)
+    	{
+    		s->head= cn;
+    		s->cursor = s->head;
+    		s->tail = cn;
+    	}
+    	else
+    	{
+    		s->tail->next = cn;
+    		s->tail = s->tail->next;
+    	}
+    	
+    	commandCount++;
+    }
+
+    return s;
 }
 
 command_t
 read_command_stream (command_stream_t s)
 {
-    /* FIXME: Replace this with your implementation too.  */
-
-    error (1, 0, "command reading not yet implemented");
-    return 0;
+    if(s->cursor == NULL)
+    {
+    	return NULL;
+    }
+    
+    struct command_node* temp = s->cursor;
+    s->cursor = s->cursor->next;
+    
+    return temp->command;
 }
 
 // a function to find the next word in the command

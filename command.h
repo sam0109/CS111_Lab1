@@ -1,6 +1,8 @@
 // UCLA CS 111 Lab 1 command interface
 
 #include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 typedef struct command *command_t;
 typedef struct command_stream *command_stream_t;
