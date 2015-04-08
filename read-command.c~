@@ -9,8 +9,12 @@
 struct command_node
 {
     struct command* command; //stores root of a command tree
-    struct command_node* n
+    struct command_node* next;
+    struct command_node* cursor;
 };
+
+
+typedef enum {WORD, OPEN_PAREN, CLOSE_PAREN, OPERATOR, UNKNOWN} word_type;
 
 typedef struct command_stream
 {
@@ -38,25 +42,39 @@ read_command_stream (command_stream_t s)
     return 0;
 }
 
-
+// a function to find the next word in the command
 char*
-scan_to_next_word(char* start)
+scan_to_next_word(char* start, word_type *word)
 {
 	
 }
+
 command_t
 generate_command_tree (char* input_string)
 {
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-    return 0;
-=======
-<<<<<<< HEAD
->>>>>>> e441f17f0eb5d0891bd797c7b7186feecf69984c
->>>>>>> a8660b619df30495718b0967370ce081044df1fa
+	word_type word;
+	char* beginning_of_next_word = input_string;
+	char* end_of_next_word = scan_to_next_word(input_string, *word);
+	while(end_of_next_word != NULL)
+	{
+		switch(word)
+		{
+			case WORD:
+				break;
+			case OPEN_PAREN:
+				break;
+			case CLOSE_PAREN:
+				break;
+			case OPERATOR:
+				break;
+			case UNKNOWN:
+				break;
+			case defaut:
+				break;
+		}
+		char* beginning_of_next_word = end_of_next_word;
+		char* end_of_next_word = scan_to_next_word(end_of_next_word, *word);
+	}
 /*
 	1)if a simple command, push it onto the command stack
 	2)if "(", push it onto the operator stack
@@ -76,14 +94,6 @@ generate_command_tree (char* input_string)
 	7)else pop remaining operators like 4a
 	*/
     return 0;
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-=======
->>>>>>> a141b272d79fe23ad8867b7e108848e28b5c9826
->>>>>>> 578d7a62502b9151b9da8e815aa087b1ae0dcb70
->>>>>>> e441f17f0eb5d0891bd797c7b7186feecf69984c
->>>>>>> a8660b619df30495718b0967370ce081044df1fa
 }
 
 
