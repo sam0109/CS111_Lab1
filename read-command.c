@@ -4,7 +4,6 @@
 #include "command-internals.h"
 
 #include <error.h>
-#include <stdlib.h>
 
 //A linked list for command trees
 struct command_node
@@ -73,6 +72,19 @@ push_new_command(struct stack* head, enum command_type in_command)
 	return;
 }
 
+int 
+is_valid_character(char c)
+{
+	return (isalpha(c) || !isdigit(c) || c == '!' || c == '%' || c == '+' || c == ',' || c == '-'  
+	   			          || c == '^' || c == '_' || c == '.' || c == '/' || c == ':' || c == '@');
+}
+
+int 
+is_valid_operator(char c)
+{
+	return (c == ';' || c == '|' || c == '&' || c == '(' || c == ')' || c == '<' || c == '>');
+}
+
 command_stream_t
 make_command_stream (int (*get_next_byte) (void *), void *get_next_byte_argument)
 {   
@@ -89,9 +101,32 @@ make_command_stream (int (*get_next_byte) (void *), void *get_next_byte_argument
 	
 	int andCount = 0;
 	int commandCount = 0;
+	
+	int lineNum = 0;
+	int errorOnLine = 0;
+	int errorOnCommandTree = 0;
 
     while ((c = get_next_byte(get_next_byte_argument)) != EOF)
     {
+    	if(!is_valid_character(c) && !isCommented && c != ' ' && !is_valid_operator(c))
+    	{
+    		if(errorOnLine == 0)
+    		{
+				fprintf(stderr,"%d: %c is not a valid character\n", lineNum, c);
+    			errorOnLine = 1;
+    			errorOnCommandTree = 1;
+    		}
+    	}
+    	
+    	if(c == ' ')
+    	{
+    		//Eats white space after operator
+			if(n == 0 || is_valid_operator(buffer[n-1]))
+    		{
+    			continue;
+    		}
+    	}
+    	
         if((n+1) == bufferSize)
         {
 			//n+2 necessary to handle special cases
@@ -99,12 +134,31 @@ make_command_stream (int (*get_next_byte) (void *), void *get_next_byte_argument
             buffer = (char*)realloc(buffer, bufferSize*sizeof(char));
         }
 
+		if(c = '&' && andCount == 0)
+		{
+			andCount++;
+		}
+		else if(andCount == 1 && c != '&')
+		{
+			if(errorOnLine == 0)
+    		{
+				fprintf(stderr,"%d: Cannot have single &\n", lineNum, c);
+    			errorOnLine = 1;
+    			errorOnCommandTree = 1;
+    		}
+    		andCount = 0;
+		}
+		else if(andCount == 1 && c == '&')
+		{
+			andCount = 0;
+		}
+
         if( c == '#')
         {
             isCommented = 1;
         }
         else if ( c == '\n')
-        {
+        {  	
             if(n == 0)
             {
                 continue;
@@ -113,42 +167,30 @@ make_command_stream (int (*get_next_byte) (void *), void *get_next_byte_argument
             if(isCommented == 1)
             {
                 isCommented = 0;
-            }
-            
-            if(andCount == 1)
-            {
-            	//TODO
-            	fprintf(stderr,": & cannot be its own line \n");
-				exit(0);
-            }
+            }          
             
             switch(buffer[n-1])
             {
                 case '&':
-					if( n - 2 >= 0)
-					{
-						if(buffer[n-2] != '&')
-						{
-							newLineCount++;
-						}
-					}
                     break;
                 case '|':
                     break;
 				case '<':
-					//TODO
-					fprintf(stderr,": No new line after < \n");
-    				exit(0);
-					break;
+					//Fall to next case
 				case '>':
-					//TODO
-					fprintf(stderr,"': No new line after >\n");
-    				exit(0);
+					if(errorOnLine == 0)
+					{
+						fprintf(stderr,"%d: new line cannot be directly after %c\n", lineNum, c);
+						errorOnLine = 1;
+						errorOnCommandTree = 1;
+					}
 					break;
 				default:
-					if( inSubshell == 0)
+					newLineCount++;
+					if(newLineCount == 1)
 					{
-						newLineCount++;
+						buffer[n] = ';';
+						n++;
 					}
 					break;
             }
@@ -157,26 +199,41 @@ make_command_stream (int (*get_next_byte) (void *), void *get_next_byte_argument
             {
             	newLineCount = 0;
             	buffer[n] = '\0';
+            	n = 0;
             	
-            	struct command_node* cn = malloc(sizeof(struct command_node));
-            	cn->command = generate_command_tree(buffer);
-            	cn->next = NULL;
-            	
-            	if(commandCount == 0)
+            	if(inSubshell != 0)
             	{
-            		s->head= cn;
-            		s->cursor = s->head;
-            		s->tail = cn;
+            		if(errorOnLine == 0)
+					{
+						fprintf(stderr,"%d: missing either a ( or )\n", lineNum);
+						errorOnLine = 1;
+						errorOnCommandTree = 1;
+					}
             	}
             	else
             	{
-            		s->tail->next = cn;
-            		s->tail = s->tail->next;
+		        	struct command_node* cn = malloc(sizeof(struct command_node));
+		        	cn->command = generate_command_tree(buffer);
+		        	cn->next = NULL;
+		        	
+		        	if(commandCount == 0)
+		        	{
+		        		s->head= cn;
+		        		s->cursor = s->head;
+		        		s->tail = cn;
+		        	}
+		        	else
+		        	{
+		        		s->tail->next = cn;
+		        		s->tail = s->tail->next;
+		        	}
+		        	
+		        	commandCount++;
             	}
-            	
-            	commandCount++;
-            	n = 0;
             }
+            
+            lineNum++;
+        	errorOnLine = 0;
         }
         else
         {
@@ -184,48 +241,24 @@ make_command_stream (int (*get_next_byte) (void *), void *get_next_byte_argument
             {
 				if(c == '(')
 				{
-					inSubshell = 1;
+					inSubshell++;
 				}
 				else if( c == ')')
 				{
-					inSubshell = 0;
+					inSubshell--;
 				}
 				
+
 				if(newLineCount == 1)
 				{
-					//Determines if new Line is a complete command
-					if(c != '|' || c != '<'|| c != '>' || c != ')' || c != ';')
+					//Only (,), and simple commands can follow a new line
+					if(!is_valid_character(c) && c != '(' && c != ')')
 					{
-						if(c == '&')
+						if(errorOnLine == 0)
 						{
-							//TODO this case needs work!!!
-							andCount++;
-							
-							if(andCount == 2)
-							{
-								buffer[n] = '&';
-								n++;
-								newLineCount = 0;
-								andCount = 0;
-							}
-						}
-						else
-						{
-							if(andCount == 1)
-							{
-								buffer[n] = ';';
-								n++;
-								buffer[n] = '&';
-								n++;
-								newLineCount = 0;
-								andCount = 0;
-							}
-							else if(n > 0 && buffer[n-1] != ';')
-							{
-								newLineCount = 0;
-								buffer[n] = ';';
-								n++;
-							}
+							fprintf(stderr,"%d: New line must start with either a (,), or simple command\n", lineNum);
+							errorOnLine = 1;
+							errorOnCommandTree = 1;
 						}
 					}
 				}

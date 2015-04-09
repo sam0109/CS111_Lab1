@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <ctype.h>
 
 typedef struct command *command_t;
 typedef struct command_stream *command_stream_t;
@@ -28,3 +29,7 @@ void execute_command (command_t, bool);
 int command_status (command_t);
 
 command_t generate_command_tree (char* input_string);
+
+int is_valid_character(char c);
+
+int is_valid_operator(char c);
