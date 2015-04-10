@@ -4,7 +4,6 @@
 #include "command-internals.h"
 
 #include <error.h>
-#include <stdlib.h>
 
 //A linked list for command trees
 struct command_node
@@ -395,17 +394,17 @@ generate_command_tree (char *input_string)
 			case SIMPLE_COMMAND: ;
 				command_t new_command = malloc(sizeof(struct command));
 				int size_of_command = 0;
-				int max_size_of_command = 3;
-				new_command->u.word = malloc(max_size_of_command);
+				int max_size_of_command = 30;
+				new_command->u.word = malloc(max_size_of_command * sizeof(char*));
 				new_command->type = SIMPLE_COMMAND;
 				new_command->status = -1;
 				int j = 0;
 				do
 				{
-					if(size_of_command >= max_size_of_command - 1){
-						max_size_of_command += 3;
-						realloc(new_command->u.word, max_size_of_command);
-					}
+					//if(size_of_command >= max_size_of_command - 1){
+					//	max_size_of_command += 3;
+					//	realloc(new_command->u.word, max_size_of_command * sizeof(char*));
+					//}
 					int word_len = end_of_next_word - beginning_of_next_word;
 					int i = 0;
 					if(next_word_is_input)
