@@ -18,7 +18,7 @@ struct stack
 	command_t command;
 };
 
-typedef struct command_stream
+struct command_stream
 {
     struct command_node *head;
     struct command_node *tail;
@@ -128,13 +128,13 @@ make_command_stream (int (*get_next_byte) (void *), void *get_next_byte_argument
             buffer = (char*)realloc(buffer, bufferSize*sizeof(char));
         }
 
-		if(c = '&' && andCount == 0)
+		if(c == '&' && andCount == 0)
 		{
 			andCount++;
 		}
 		else if(andCount == 1 && c != '&')
 		{
-			fprintf(stderr,"%d: Cannot have single &\n", lineNum, c);
+			fprintf(stderr,"%d: Cannot have single &\n", lineNum);
 			exit(1);
 		}
 		else if(andCount == 1 && c == '&')
@@ -214,7 +214,6 @@ make_command_stream (int (*get_next_byte) (void *), void *get_next_byte_argument
             }
             
             lineNum++;
-        	errorOnLine = 0;
         }
         else
         {
