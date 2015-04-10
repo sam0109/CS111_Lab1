@@ -1,4 +1,16 @@
-This is a skeleton for CS 111 Lab 1.
+Lab 1 part a)
+This part is rather simple, and is broken up into two parts.
 
-Replace this README file with notes on your implementation.
-Mentions any special features or limitations.
+The make_stream function has dual function, it acts as both our syntax checker
+and input beautifier. This make_stream then passes the beautified complete command
+tree string into the generate command tree which then actually performs the parsing of
+the commands. This method is effective because it allows us to know that we are parsing
+only valid syntax (the only syntax error make_stream does not check for is having the 
+proper ratio of operands to operators). Once generate command tree outputs the command tree
+the make_stream function adds the command tree to the command stream and then goes ahead building
+the next command tree string. This separation also allows for our code to be split into parts
+making the code easier to test and service.
+
+The generate command tree function makes use of two stacks a command stack and an operator
+stack to keep track of operators and operands. Using a similar concept as post-fix notation
+we are able to utilize the two stacks to effectively determine the order of parsed commands.
