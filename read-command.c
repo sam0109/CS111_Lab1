@@ -343,12 +343,12 @@ scan_to_next_word(char *string, int *beginning_of_next_word, enum command_type *
 	if(string[*beginning_of_next_word] == '|' && string[*beginning_of_next_word + 1] == '|')	//check to see if it's an operator
 	{
 		*word = OR_COMMAND;
-		return *beginning_of_next_word + 1;
+		return *beginning_of_next_word + 2;
 	}
 	if(string[*beginning_of_next_word] == '&' && string[*beginning_of_next_word + 1] == '&')
 	{
 		*word = AND_COMMAND;
-		return *beginning_of_next_word + 1;
+		return *beginning_of_next_word + 2;
 	}
 	if(string[*beginning_of_next_word] == '|')
 	{
