@@ -282,6 +282,12 @@ make_command_stream (int (*get_next_byte) (void *), void *get_next_byte_argument
     
     if(n > 0)
     {
+    	if(inSubshell != 0)
+    	{
+			fprintf(stderr,"%d: missing either a ( or )\n", lineNum);
+			exit(1);
+    	}
+    
     	if((n+1) == bufferSize)
         {
 			//n+2 necessary to handle special cases
