@@ -176,15 +176,15 @@ make_command_stream (int (*get_next_byte) (void *), void *get_next_byte_argument
         }
         else if ( c == '\n')
         {  	
+        	if(isCommented == 1)
+			{
+				isCommented = 0;
+			}
+
             if(n == 0)
             {
                 continue;
             }
-            
-            if(isCommented == 1)
-            {
-                isCommented = 0;
-            }          
             
             switch(buffer[n-1])
             {
@@ -358,12 +358,12 @@ scan_to_next_word(char *string, int *beginning_of_next_word, enum command_type *
 	if(string[*beginning_of_next_word] == '|' && string[*beginning_of_next_word + 1] == '|')	//check to see if it's an operator
 	{
 		*word = OR_COMMAND;
-		return *beginning_of_next_word + 1;
+		return *beginning_of_next_word + 2;
 	}
 	if(string[*beginning_of_next_word] == '&' && string[*beginning_of_next_word + 1] == '&')
 	{
 		*word = AND_COMMAND;
-		return *beginning_of_next_word + 1;
+		return *beginning_of_next_word + 2;
 	}
 	if(string[*beginning_of_next_word] == '|')
 	{
@@ -416,17 +416,21 @@ operator_test(command_t a, command_t b)
 		return true;
 	if(b->type == OR_COMMAND || b->type == AND_COMMAND)
 		return false;
+	if(a->type == PIPE_COMMAND)
+		return true;
+	if(b->type == PIPE_COMMAND)
+		return false;
 	return true;
 }
 
 int
-pop_and_combine(command_t command, struct stack *operators, struct stack *commands)
+pop_and_combine(command_t command, struct stack **operators, struct stack **commands)
 {
-	while(operator_test(command, operators->command))
+	while(operator_test(command, operators[0]->command))
 	{
-		command_t popped_operator = pop(&operators);
-		popped_operator->u.command[1] = pop(&commands);
-		popped_operator->u.command[0] = pop(&commands);
+		command_t popped_operator = pop(operators);
+		popped_operator->u.command[1] = pop(commands);
+		popped_operator->u.command[0] = pop(commands);
 		if((popped_operator->type == AND_COMMAND ||
 		    popped_operator->type == OR_COMMAND ||
 		    popped_operator->type == PIPE_COMMAND)&&(
@@ -435,17 +439,17 @@ pop_and_combine(command_t command, struct stack *operators, struct stack *comman
 		{
 			return 1;
 		}
-		push(&commands, popped_operator);
+		push(commands, popped_operator);
 	}
-	if(command->type == SUBSHELL_COMMAND && operators->command->type == SUBSHELL_COMMAND)
+	if(command->type == SUBSHELL_COMMAND && operators[0]->command->type == SUBSHELL_COMMAND)
 	{
-		free_command_t_recursive(pop(&operators));
-		command->u.subshell_command = pop(&commands);
-		push(&commands, command);
+		free_command_t_recursive(pop(operators));
+		command->u.subshell_command = pop(commands);
+		push(commands, command);
 	}
 	else
 	{
-		push(&operators, command);
+		push(operators, command);
 	}
 	return 0;
 	/*
@@ -500,7 +504,7 @@ generate_command_tree (char *input_string)
 						new_command->input[word_len] = '\0';
 						next_word_is_input = false;
 					}
-					if(next_word_is_output)
+					else if(next_word_is_output)
 					{
 						new_command->output = malloc(word_len + 1);
 						while(i < word_len)
@@ -511,14 +515,6 @@ generate_command_tree (char *input_string)
 						new_command->output[word_len] = '\0';
 						next_word_is_output = false;
 					}
-					if(input_string[end_of_next_word + 1] == '<' || input_string[end_of_next_word] == '<')
-					{
-						next_word_is_input = true;
-					}
-					else if(input_string[end_of_next_word + 1] == '>' || input_string[end_of_next_word] == '>')
-					{
-						next_word_is_output = true;
-					}
 					else
 					{
 						new_command->u.word[j] = malloc(word_len + 1);
@@ -528,6 +524,14 @@ generate_command_tree (char *input_string)
 							i++;
 						}
 						new_command->u.word[j][word_len] = '\0';
+					}
+					if(input_string[end_of_next_word + 1] == '<' || input_string[end_of_next_word] == '<')
+					{
+						next_word_is_input = true;
+					}
+					if(input_string[end_of_next_word + 1] == '>' || input_string[end_of_next_word] == '>')
+					{
+						next_word_is_output = true;
 					}
 					j++;
 					size_of_command++;
@@ -551,7 +555,7 @@ generate_command_tree (char *input_string)
 					new_command->type = SUBSHELL_COMMAND;
 					new_command->status = -1;
 					new_command->u.subshell_command = 0;
-					if(pop_and_combine(new_command, operators, commands))
+					if(pop_and_combine(new_command, &operators, &commands))
 						return 0;
 				}
 				beginning_of_next_word = end_of_next_word;
@@ -568,7 +572,7 @@ generate_command_tree (char *input_string)
 					command_t new_command = malloc(sizeof(struct command));
 					new_command->type = AND_COMMAND;
 					new_command->status = -1;
-					if(pop_and_combine(new_command, operators, commands))
+					if(pop_and_combine(new_command, &operators, &commands))
 						return 0;
 				}
 				beginning_of_next_word = end_of_next_word;
@@ -585,7 +589,7 @@ generate_command_tree (char *input_string)
 					command_t new_command = malloc(sizeof(struct command));
 					new_command->type = SEQUENCE_COMMAND;
 					new_command->status = -1;
-					if(pop_and_combine(new_command, operators, commands))
+					if(pop_and_combine(new_command, &operators, &commands))
 						return 0;
 				}
 				beginning_of_next_word = end_of_next_word;
@@ -602,7 +606,7 @@ generate_command_tree (char *input_string)
 					command_t new_command = malloc(sizeof(struct command));
 					new_command->type = OR_COMMAND;
 					new_command->status = -1;
-					if(pop_and_combine(new_command, operators, commands))
+					if(pop_and_combine(new_command, &operators, &commands))
 						return 0;
 				}
 				beginning_of_next_word = end_of_next_word;
@@ -619,7 +623,7 @@ generate_command_tree (char *input_string)
 					command_t new_command = malloc(sizeof(struct command));
 					new_command->type = PIPE_COMMAND;
 					new_command->status = -1;
-					if(pop_and_combine(new_command, operators, commands))
+					if(pop_and_combine(new_command, &operators, &commands))
 						return 0;
 				}
 				beginning_of_next_word = end_of_next_word;
@@ -629,7 +633,7 @@ generate_command_tree (char *input_string)
 				break;
 		}
 	}
-	if(pop_and_combine(pop(&operators), operators, commands))
+	if(pop_and_combine(pop(&operators), &operators, &commands))
 		return 0;
 	return pop(&commands);
 /*
