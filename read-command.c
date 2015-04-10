@@ -404,7 +404,7 @@ pop_and_combine(command_t command, struct stack *operators, struct stack *comman
 
 command_t
 generate_command_tree (char *input_string)
-{`	
+{	
 	enum command_type word;
 	bool next_word_is_input = false;
 	bool next_word_is_output = false;
