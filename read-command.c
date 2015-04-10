@@ -76,8 +76,8 @@ push_new_command(struct stack **head, enum command_type in_command)
 int 
 is_valid_character(char c)
 {
-	return (isalpha(c) || isdigit(c) || c == '!' || c == '%' || c == '+' || c == ',' || c == '-'  
-	   			         || c == '^' || c == '_' || c == '.' || c == '/' || c == ':' || c == '@');
+	return (isalpha(c) || isdigit(c) || c == '!' || c == '%' || c == '+' || c == ',' || c == '-' || c == '#'
+	   			                     || c == '^' || c == '_' || c == '.' || c == '/' || c == ':' || c == '@');
 }
 
 int 
@@ -130,6 +130,15 @@ make_command_stream (int (*get_next_byte) (void *), void *get_next_byte_argument
 				exit(1);
     		}
     	}
+    	
+    	if(is_valid_operator(c) && n > 0)
+		{
+			if(buffer[n-1] == '<' || buffer[n-1] == '>')
+			{
+				fprintf(stderr,"%d: %c cannot follow redirect\n", lineNum, c);
+				exit(1);
+			}
+		}
     	
     	if(c == ';' && n > 0)
     	{
