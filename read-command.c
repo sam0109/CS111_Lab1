@@ -76,8 +76,8 @@ push_new_command(struct stack **head, enum command_type in_command)
 int 
 is_valid_character(char c)
 {
-	return (isalpha(c) || isdigit(c) || c == '!' || c == '%' || c == '+' || c == ',' || c == '-'  
-	   			         || c == '^' || c == '_' || c == '.' || c == '/' || c == ':' || c == '@');
+	return (isalpha(c) || isdigit(c) || c == '!' || c == '%' || c == '+' || c == ',' || c == '-' || c == '#'
+	   			                     || c == '^' || c == '_' || c == '.' || c == '/' || c == ':' || c == '@');
 }
 
 int 
