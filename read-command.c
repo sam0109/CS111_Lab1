@@ -103,19 +103,13 @@ make_command_stream (int (*get_next_byte) (void *), void *get_next_byte_argument
 	int commandCount = 0;
 	
 	int lineNum = 0;
-	int errorOnLine = 0;
-	int errorOnCommandTree = 0;
 
     while ((c = get_next_byte(get_next_byte_argument)) != EOF)
     {
     	if(!is_valid_character(c) && !isCommented && c != ' ' && !is_valid_operator(c))
     	{
-    		if(errorOnLine == 0)
-    		{
-				fprintf(stderr,"%d: %c is not a valid character\n", lineNum, c);
-    			errorOnLine = 1;
-    			errorOnCommandTree = 1;
-    		}
+			fprintf(stderr,"%d: %c is not a valid character\n", lineNum, c);
+			exit(1);
     	}
     	
     	if(c == ' ')
@@ -140,13 +134,8 @@ make_command_stream (int (*get_next_byte) (void *), void *get_next_byte_argument
 		}
 		else if(andCount == 1 && c != '&')
 		{
-			if(errorOnLine == 0)
-    		{
-				fprintf(stderr,"%d: Cannot have single &\n", lineNum, c);
-    			errorOnLine = 1;
-    			errorOnCommandTree = 1;
-    		}
-    		andCount = 0;
+			fprintf(stderr,"%d: Cannot have single &\n", lineNum, c);
+			exit(1);
 		}
 		else if(andCount == 1 && c == '&')
 		{
@@ -178,12 +167,8 @@ make_command_stream (int (*get_next_byte) (void *), void *get_next_byte_argument
 				case '<':
 					//Fall to next case
 				case '>':
-					if(errorOnLine == 0)
-					{
-						fprintf(stderr,"%d: new line cannot be directly after %c\n", lineNum, c);
-						errorOnLine = 1;
-						errorOnCommandTree = 1;
-					}
+					fprintf(stderr,"%d: new line cannot be directly after %c\n", lineNum, buffer[n-1]);
+					exit(1);
 					break;
 				default:
 					newLineCount++;
@@ -203,12 +188,8 @@ make_command_stream (int (*get_next_byte) (void *), void *get_next_byte_argument
             	
             	if(inSubshell != 0)
             	{
-            		if(errorOnLine == 0)
-					{
-						fprintf(stderr,"%d: missing either a ( or )\n", lineNum);
-						errorOnLine = 1;
-						errorOnCommandTree = 1;
-					}
+					fprintf(stderr,"%d: missing either a ( or )\n", lineNum);
+					exit(1);
             	}
             	else
             	{
@@ -254,12 +235,8 @@ make_command_stream (int (*get_next_byte) (void *), void *get_next_byte_argument
 					//Only (,), and simple commands can follow a new line
 					if(!is_valid_character(c) && c != '(' && c != ')')
 					{
-						if(errorOnLine == 0)
-						{
-							fprintf(stderr,"%d: New line must start with either a (,), or simple command\n", lineNum);
-							errorOnLine = 1;
-							errorOnCommandTree = 1;
-						}
+						fprintf(stderr,"%d: New line must start with either a (,), or simple command\n", lineNum);
+						exit(1);
 					}
 				}
 				
