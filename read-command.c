@@ -116,7 +116,7 @@ make_command_stream (int (*get_next_byte) (void *), void *get_next_byte_argument
     	if(c == ' ' || c == '\t')
     	{
     		//Eats white space after operator
-			if(n == 0 || is_valid_operator(buffer[n-1]))
+			if(n == 0 || is_valid_operator(buffer[n-1]) || buffer[n-1] == ' ')
     		{
     			continue;
     		}
