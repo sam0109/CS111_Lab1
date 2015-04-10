@@ -131,6 +131,15 @@ make_command_stream (int (*get_next_byte) (void *), void *get_next_byte_argument
     		}
     	}
     	
+    	if(c == ';' && n > 0)
+    	{
+    		if(buffer[n-1] == ';')
+    		{
+    			fprintf(stderr,"%d: cannot have two %c consecutively\n", lineNum, c);
+				exit(1);
+    		}
+    	}
+    	
         if((n+1) == bufferSize)
         {
 			//n+2 necessary to handle special cases
