@@ -76,8 +76,8 @@ push_new_command(struct stack **head, enum command_type in_command)
 int 
 is_valid_character(char c)
 {
-	return (isalpha(c) || !isdigit(c) || c == '!' || c == '%' || c == '+' || c == ',' || c == '-'  
-	   			          || c == '^' || c == '_' || c == '.' || c == '/' || c == ':' || c == '@');
+	return (isalpha(c) || isdigit(c) || c == '!' || c == '%' || c == '+' || c == ',' || c == '-'  
+	   			         || c == '^' || c == '_' || c == '.' || c == '/' || c == ':' || c == '@');
 }
 
 int 
@@ -107,10 +107,10 @@ make_command_stream (int (*get_next_byte) (void *), void *get_next_byte_argument
 
     while ((c = get_next_byte(get_next_byte_argument)) != EOF)
     {
-    	if(!is_valid_character(c) && !isCommented && c != ' ' && !is_valid_operator(c))
+    	if(!is_valid_character(c) && !isCommented && c != ' ' && !is_valid_operator(c) && c != '\n')
     	{
 			fprintf(stderr,"%d: %c is not a valid character\n", lineNum, c);
-			exit(1);
+			exit(-1);
     	}
     	
     	if(c == ' ')
