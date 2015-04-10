@@ -372,7 +372,7 @@ operator_test(command_t a, command_t b)
 	return true;
 }
 
-void
+int
 pop_and_combine(command_t command, struct stack *operators, struct stack *commands)
 {
 	while(operator_test(command, operators->command))
@@ -380,6 +380,14 @@ pop_and_combine(command_t command, struct stack *operators, struct stack *comman
 		command_t popped_operator = pop(&operators);
 		popped_operator->u.command[1] = pop(&commands);
 		popped_operator->u.command[0] = pop(&commands);
+		if((popped_operator->type == AND_COMMAND ||
+		    popped_operator->type == OR_COMMAND ||
+		    popped_operator->type == PIPE_COMMAND)&&(
+		    popped_operator->u.command[1] == 0||
+		    popped_operator->u.command[0] == 0) )
+		{
+			return 1;
+		}
 		push(&commands, popped_operator);
 	}
 	if(command->type == SUBSHELL_COMMAND && operators->command->type == SUBSHELL_COMMAND)
@@ -392,7 +400,7 @@ pop_and_combine(command_t command, struct stack *operators, struct stack *comman
 	{
 		push(&operators, command);
 	}
-	return;
+	return 0;
 	/*
 	   	 	 a)pop all operators with >= precidence off operator stack
 	    	 b)for each operator, pop 2 commands off command stacks
@@ -479,6 +487,8 @@ generate_command_tree (char *input_string)
 					beginning_of_next_word = end_of_next_word;
 					end_of_next_word = scan_to_next_word(input_string, &beginning_of_next_word, &word);
 				}while(word == SIMPLE_COMMAND && end_of_next_word != beginning_of_next_word);
+				if(next_word_is_input || next_word_is_output)
+					return 0;
 				new_command->words = size_of_command;
 				push(&commands, new_command);
 				break;
@@ -494,7 +504,8 @@ generate_command_tree (char *input_string)
 					new_command->type = SUBSHELL_COMMAND;
 					new_command->status = -1;
 					new_command->u.subshell_command = 0;
-					pop_and_combine(new_command, operators, commands);
+					if(pop_and_combine(new_command, operators, commands))
+						return 0;
 				}
 				beginning_of_next_word = end_of_next_word;
 				end_of_next_word = scan_to_next_word(input_string, &beginning_of_next_word, &word);
@@ -510,7 +521,8 @@ generate_command_tree (char *input_string)
 					command_t new_command = malloc(sizeof(struct command));
 					new_command->type = AND_COMMAND;
 					new_command->status = -1;
-					pop_and_combine(new_command, operators, commands);
+					if(pop_and_combine(new_command, operators, commands))
+						return 0;
 				}
 				beginning_of_next_word = end_of_next_word;
 				end_of_next_word = scan_to_next_word(input_string, &beginning_of_next_word, &word);
@@ -526,7 +538,8 @@ generate_command_tree (char *input_string)
 					command_t new_command = malloc(sizeof(struct command));
 					new_command->type = SEQUENCE_COMMAND;
 					new_command->status = -1;
-					pop_and_combine(new_command, operators, commands);
+					if(pop_and_combine(new_command, operators, commands))
+						return 0;
 				}
 				beginning_of_next_word = end_of_next_word;
 				end_of_next_word = scan_to_next_word(input_string, &beginning_of_next_word, &word);
@@ -542,7 +555,8 @@ generate_command_tree (char *input_string)
 					command_t new_command = malloc(sizeof(struct command));
 					new_command->type = OR_COMMAND;
 					new_command->status = -1;
-					pop_and_combine(new_command, operators, commands);
+					if(pop_and_combine(new_command, operators, commands))
+						return 0;
 				}
 				beginning_of_next_word = end_of_next_word;
 				end_of_next_word = scan_to_next_word(input_string, &beginning_of_next_word, &word);
@@ -558,7 +572,8 @@ generate_command_tree (char *input_string)
 					command_t new_command = malloc(sizeof(struct command));
 					new_command->type = PIPE_COMMAND;
 					new_command->status = -1;
-					pop_and_combine(new_command, operators, commands);
+					if(pop_and_combine(new_command, operators, commands))
+						return 0;
 				}
 				beginning_of_next_word = end_of_next_word;
 				end_of_next_word = scan_to_next_word(input_string, &beginning_of_next_word, &word);
@@ -567,7 +582,8 @@ generate_command_tree (char *input_string)
 				break;
 		}
 	}
-	pop_and_combine(pop(&operators), operators, commands);
+	if(pop_and_combine(pop(&operators), operators, commands))
+		return 0;
 	return pop(&commands);
 /*
 	1)if a simple command, push it onto the command stack
