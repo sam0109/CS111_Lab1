@@ -42,27 +42,28 @@ free_command_t_recursive(command_t to_free)
 }
 
 command_t
-pop(struct stack *head)
+pop(struct stack **head)
 {
-	struct stack* temp = head;
-	head = head->down;
+	if(head[0]->command == 0)
+		return 0;
+	struct stack *temp = *head;
+	head[0] = head[0]->down;
 	command_t command = temp->command;
-	free(temp);
 	return command;
 }
 
 void
-push(struct stack *head, command_t new_command)
+push(struct stack **head, command_t new_command)
 {
 	struct stack* new_head = malloc(sizeof(struct stack));
 	new_head->command = new_command;
-	new_head->down = head;
-	head = new_head;
+	new_head->down = *head;
+	*head = new_head;
 	return;
 }
 
 void
-push_new_command(struct stack* head, enum command_type in_command)
+push_new_command(struct stack **head, enum command_type in_command)
 {
 	command_t new_command = malloc(sizeof(struct command));
 	new_command->type = in_command;
@@ -291,32 +292,32 @@ scan_to_next_word(char *string, int *beginning_of_next_word, enum command_type *
 {																						// and find the beginning of the next word
 	while(string[*beginning_of_next_word] != '\0' && string[*beginning_of_next_word] == ' ') 	// get rid of leading spaces
 	{
-		beginning_of_next_word++;
+		*beginning_of_next_word = *beginning_of_next_word + 1;
 	}
 	if(string[*beginning_of_next_word] == '|' && string[*beginning_of_next_word + 1] == '|')	//check to see if it's an operator
 	{
 		*word = OR_COMMAND;
-		return 1;
+		return *beginning_of_next_word + 1;
 	}
 	if(string[*beginning_of_next_word] == '&' && string[*beginning_of_next_word + 1] == '&')
 	{
 		*word = AND_COMMAND;
-		return 1;
+		return *beginning_of_next_word + 1;
 	}
 	if(string[*beginning_of_next_word] == '|')
 	{
 		*word = PIPE_COMMAND;
-		return 1;
+		return *beginning_of_next_word + 1;
 	}
 	if(string[*beginning_of_next_word] == '(' || string[*beginning_of_next_word] == ')')
 	{
 		*word = SUBSHELL_COMMAND;
-		return 1;
+		return *beginning_of_next_word + 1;
 	}
 	if(string[*beginning_of_next_word] == ';')
 	{
 		*word = SEQUENCE_COMMAND;
-		return 1;
+		return *beginning_of_next_word + 1;
 	}
 	*word = SIMPLE_COMMAND;  //otherwise it's a simple command
 
@@ -340,6 +341,8 @@ scan_to_next_word(char *string, int *beginning_of_next_word, enum command_type *
 bool
 operator_test(command_t a, command_t b)
 {
+	if(a == 0 || b == 0)
+		return false;
 	if(a->type == SUBSHELL_COMMAND && b->type != SUBSHELL_COMMAND)
 		return true;
 	if(b->type == SUBSHELL_COMMAND && b->u.subshell_command == 0)
@@ -360,20 +363,20 @@ pop_and_combine(command_t command, struct stack *operators, struct stack *comman
 {
 	while(operator_test(command, operators->command))
 	{
-		command_t popped_operator = pop(operators);
-		popped_operator->u.command[1] = pop(commands);
-		popped_operator->u.command[0] = pop(commands);
-		push(commands, popped_operator);
+		command_t popped_operator = pop(&operators);
+		popped_operator->u.command[1] = pop(&commands);
+		popped_operator->u.command[0] = pop(&commands);
+		push(&commands, popped_operator);
 	}
 	if(command->type == SUBSHELL_COMMAND && operators->command->type == SUBSHELL_COMMAND)
 	{
-		free_command_t_recursive(pop(operators));
-		command->u.subshell_command = pop(commands);
-		push(commands, command);
+		free_command_t_recursive(pop(&operators));
+		command->u.subshell_command = pop(&commands);
+		push(&commands, command);
 	}
 	else
 	{
-		push(operators, command);
+		push(&operators, command);
 	}
 	return;
 	/*
@@ -396,7 +399,7 @@ generate_command_tree (char *input_string)
 	struct stack* commands = malloc(sizeof(struct stack));
 	commands->command = 0;
 	int beginning_of_next_word = 0;
-	int end_of_next_word = scan_to_next_word(&input_string[beginning_of_next_word], &beginning_of_next_word, &word);
+	int end_of_next_word = scan_to_next_word(input_string, &beginning_of_next_word, &word);
 	while(end_of_next_word != beginning_of_next_word)
 	{
 		switch(word)
@@ -459,16 +462,17 @@ generate_command_tree (char *input_string)
 					}
 					j++;
 					size_of_command++;
-					end_of_next_word = scan_to_next_word(&input_string[beginning_of_next_word], &beginning_of_next_word, &word);
-				}while(word == SIMPLE_COMMAND);
+					beginning_of_next_word = end_of_next_word;
+					end_of_next_word = scan_to_next_word(input_string, &beginning_of_next_word, &word);
+				}while(word == SIMPLE_COMMAND && end_of_next_word != beginning_of_next_word);
 				new_command->words = size_of_command;
-				push(commands, new_command);
+				push(&commands, new_command);
 				break;
 
 			case SUBSHELL_COMMAND:
 				if(input_string[beginning_of_next_word] == '(')
 				{
-					push_new_command(operators, SUBSHELL_COMMAND);
+					push_new_command(&operators, SUBSHELL_COMMAND);
 				}
 				else
 				{
@@ -478,13 +482,14 @@ generate_command_tree (char *input_string)
 					new_command->u.subshell_command = 0;
 					pop_and_combine(new_command, operators, commands);
 				}
-				end_of_next_word = scan_to_next_word(&input_string[beginning_of_next_word], &beginning_of_next_word, &word);
+				beginning_of_next_word = end_of_next_word;
+				end_of_next_word = scan_to_next_word(input_string, &beginning_of_next_word, &word);
 				break;
 
 			case AND_COMMAND:
 				if(operators->command == 0)
 				{
-					push_new_command(operators, AND_COMMAND);
+					push_new_command(&operators, AND_COMMAND);
 				}
 				else
 				{
@@ -493,13 +498,14 @@ generate_command_tree (char *input_string)
 					new_command->status = -1;
 					pop_and_combine(new_command, operators, commands);
 				}
-				end_of_next_word = scan_to_next_word(&input_string[beginning_of_next_word], &beginning_of_next_word, &word);
+				beginning_of_next_word = end_of_next_word;
+				end_of_next_word = scan_to_next_word(input_string, &beginning_of_next_word, &word);
 				break;
 
 			case SEQUENCE_COMMAND:
 				if(operators->command == 0)
 				{
-					push_new_command(operators, SEQUENCE_COMMAND);
+					push_new_command(&operators, SEQUENCE_COMMAND);
 				}
 				else
 				{
@@ -508,13 +514,14 @@ generate_command_tree (char *input_string)
 					new_command->status = -1;
 					pop_and_combine(new_command, operators, commands);
 				}
-				end_of_next_word = scan_to_next_word(&input_string[beginning_of_next_word], &beginning_of_next_word, &word);
+				beginning_of_next_word = end_of_next_word;
+				end_of_next_word = scan_to_next_word(input_string, &beginning_of_next_word, &word);
 				break;
 
 			case OR_COMMAND:
 				if(operators->command == 0)
 				{
-					push_new_command(operators, OR_COMMAND);
+					push_new_command(&operators, OR_COMMAND);
 				}
 				else
 				{
@@ -523,13 +530,14 @@ generate_command_tree (char *input_string)
 					new_command->status = -1;
 					pop_and_combine(new_command, operators, commands);
 				}
-				end_of_next_word = scan_to_next_word(&input_string[beginning_of_next_word], &beginning_of_next_word, &word);
+				beginning_of_next_word = end_of_next_word;
+				end_of_next_word = scan_to_next_word(input_string, &beginning_of_next_word, &word);
 				break;
 
 			case PIPE_COMMAND:
 				if(operators->command == 0)
 				{
-					push_new_command(operators, PIPE_COMMAND);
+					push_new_command(&operators, PIPE_COMMAND);
 				}
 				else
 				{
@@ -538,14 +546,15 @@ generate_command_tree (char *input_string)
 					new_command->status = -1;
 					pop_and_combine(new_command, operators, commands);
 				}
-				end_of_next_word = scan_to_next_word(&input_string[beginning_of_next_word], &beginning_of_next_word, &word);
+				beginning_of_next_word = end_of_next_word;
+				end_of_next_word = scan_to_next_word(input_string, &beginning_of_next_word, &word);
 				break;
 			default:
 				break;
 		}
-		pop_and_combine(pop(operators), operators, commands);
-		return pop(commands);
 	}
+	pop_and_combine(pop(&operators), operators, commands);
+	return pop(&commands);
 /*
 	1)if a simple command, push it onto the command stack
 	2)if "(", push it onto the operator stack
