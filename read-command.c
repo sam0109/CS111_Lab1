@@ -248,6 +248,19 @@ make_command_stream (int (*get_next_byte) (void *), void *get_next_byte_argument
     
     if(n > 0)
     {
+    	if((n+1) == bufferSize)
+        {
+			//n+2 necessary to handle special cases
+            bufferSize = bufferSize * 10;
+            buffer = (char*)realloc(buffer, bufferSize*sizeof(char));
+        }
+        
+        if(buffer[n-1] != ';')
+        {
+        	buffer[n] = ';';
+        	n++;
+        }
+        
     	buffer[n] = '\0';
     	
     	struct command_node* cn = malloc(sizeof(struct command_node));
@@ -268,7 +281,8 @@ make_command_stream (int (*get_next_byte) (void *), void *get_next_byte_argument
     	
     	commandCount++;
     }
-
+	
+	free(buffer);
     return s;
 }
 
@@ -390,7 +404,7 @@ pop_and_combine(command_t command, struct stack *operators, struct stack *comman
 
 command_t
 generate_command_tree (char *input_string)
-{
+{`	
 	enum command_type word;
 	bool next_word_is_input = false;
 	bool next_word_is_output = false;
