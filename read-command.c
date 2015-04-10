@@ -107,18 +107,27 @@ make_command_stream (int (*get_next_byte) (void *), void *get_next_byte_argument
 
     while ((c = get_next_byte(get_next_byte_argument)) != EOF)
     {
-    	if(!is_valid_character(c) && !isCommented && c != ' ' && !is_valid_operator(c) && c != '\n')
+    	if(!is_valid_character(c) && !isCommented && c != ' ' && !is_valid_operator(c) && c != '\n' && c != '\t')
     	{
 			fprintf(stderr,"%d: %c is not a valid character\n", lineNum, c);
-			exit(-1);
+			exit(1);
     	}
     	
-    	if(c == ' ')
+    	if(c == ' ' || c == '\t')
     	{
     		//Eats white space after operator
 			if(n == 0 || is_valid_operator(buffer[n-1]))
     		{
     			continue;
+    		}
+    	}
+    	
+    	if(n == 0)
+    	{
+    		if(is_valid_operator(c))
+    		{
+    			fprintf(stderr,"%d: %c operator cannot start line\n", lineNum, c);
+				exit(1);
     		}
     	}
     	
@@ -196,6 +205,13 @@ make_command_stream (int (*get_next_byte) (void *), void *get_next_byte_argument
             	{
 		        	struct command_node* cn = malloc(sizeof(struct command_node));
 		        	cn->command = generate_command_tree(buffer);
+		        	
+		        	if(cn->command == NULL)
+		        	{
+		        		fprintf(stderr,"%d: check number of operators to operands\n", lineNum);
+		        		exit(1);
+		        	}
+		        	
 		        	cn->next = NULL;
 		        	
 		        	if(commandCount == 0)
@@ -265,6 +281,13 @@ make_command_stream (int (*get_next_byte) (void *), void *get_next_byte_argument
     	
     	struct command_node* cn = malloc(sizeof(struct command_node));
     	cn->command = generate_command_tree(buffer);
+    	
+    	if(cn->command == NULL)
+    	{
+    		fprintf(stderr,"%d: check number of operators to operands\n", lineNum);
+    		exit(1);
+    	}
+    	
     	cn->next = NULL;
     	
     	if(commandCount == 0)
