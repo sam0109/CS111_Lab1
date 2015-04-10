@@ -343,9 +343,9 @@ read_command_stream (command_stream_t s)
 
 // a function to find the next word in the command
 int
-scan_to_next_word(char *string, int *beginning_of_next_word, enum command_type *word) 	//return the number of characters in the next word (return 4 for "this is a test")
+scan_to_next_word(char *string, int *beginning_of_next_word, enum command_type *word) 	//return the character number of the next character (return 4 for "this is a test")
 {																						// and find the beginning of the next word
-	while(string[*beginning_of_next_word] != '\0' && string[*beginning_of_next_word] == ' ') 	// get rid of leading spaces
+	while(string[*beginning_of_next_word] != '\0' && (string[*beginning_of_next_word] == ' ' || string[*beginning_of_next_word] == '>' || string[*beginning_of_next_word] == '<')) 	// get rid of leading spaces
 	{
 		*beginning_of_next_word = *beginning_of_next_word + 1;
 	}
@@ -505,11 +505,11 @@ generate_command_tree (char *input_string)
 						new_command->output[word_len] = '\0';
 						next_word_is_output = false;
 					}
-					if(input_string[beginning_of_next_word] == '<')
+					if(input_string[end_of_next_word + 1] == '<' || input_string[end_of_next_word] == '<')
 					{
 						next_word_is_input = true;
 					}
-					else if(input_string[beginning_of_next_word] == '>')
+					else if(input_string[end_of_next_word + 1] == '>' || input_string[end_of_next_word] == '>')
 					{
 						next_word_is_output = true;
 					}
