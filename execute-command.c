@@ -17,6 +17,11 @@ command_status (command_t c)
 void
 execute_command (command_t c, bool time_travel)
 {
+	if(time_travel)
+	{
+		//Trash added in to compile with -werror
+		c->status = 1;
+	}
   /* FIXME: Replace this with your implementation.  You may need to
      add auxiliary functions and otherwise modify the source code.
      You can also use external functions defined in the GNU C Library.  */

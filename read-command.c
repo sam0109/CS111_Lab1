@@ -109,17 +109,19 @@ make_command_stream (int (*get_next_byte) (void *), void *get_next_byte_argument
 	
 	int lineNum = 0;
 
+	//iterates through all characters in stream
     while ((c = get_next_byte(get_next_byte_argument)) != EOF)
     {
     	if(!is_valid_character(c) && !isCommented && c != ' ' && !is_valid_operator(c) && c != '\n' && c != '\t')
     	{
+    		//Only valid characters can exist
 			fprintf(stderr,"%d: %c is not a valid character\n", lineNum, c);
 			exit(1);
     	}
     	
     	if(c == ' ' || c == '\t')
     	{
-    		//Eats white space after operator
+    		//Eats white space after operator or extra white space
 			if(n == 0 || is_valid_operator(buffer[n-1]) || buffer[n-1] == ' ')
     		{
     			continue;
@@ -128,7 +130,8 @@ make_command_stream (int (*get_next_byte) (void *), void *get_next_byte_argument
     	
     	if(n == 0)
     	{
-    		if(is_valid_operator(c))
+    		//no operates can follow \n other than ( and )
+    		if(is_valid_operator(c) && c != '(' && c != ')')
     		{
     			fprintf(stderr,"%d: %c operator cannot start line\n", lineNum, c);
 				exit(1);
@@ -137,6 +140,7 @@ make_command_stream (int (*get_next_byte) (void *), void *get_next_byte_argument
     	
     	if(is_valid_operator(c) && n > 0)
 		{
+			//Follows proper redirects
 			if(buffer[n-1] == '<' || buffer[n-1] == '>')
 			{
 				fprintf(stderr,"%d: %c cannot follow redirect\n", lineNum, c);
@@ -146,6 +150,7 @@ make_command_stream (int (*get_next_byte) (void *), void *get_next_byte_argument
     	
     	if(c == ';' && n > 0)
     	{
+    		//Cannot have ;; in row
     		if(buffer[n-1] == ';')
     		{
     			fprintf(stderr,"%d: cannot have two %c consecutively\n", lineNum, c);
@@ -160,6 +165,7 @@ make_command_stream (int (*get_next_byte) (void *), void *get_next_byte_argument
             buffer = (char*)realloc(buffer, bufferSize*sizeof(char));
         }
 
+		//Must have two &&
 		if(c == '&' && andCount == 0)
 		{
 			andCount++;
@@ -174,12 +180,14 @@ make_command_stream (int (*get_next_byte) (void *), void *get_next_byte_argument
 			andCount = 0;
 		}
 
+		//Comments out stuff
         if( c == '#')
         {
             isCommented = 1;
         }
         else if ( c == '\n')
         {  	
+        	//Handle new line cases
         	if(isCommented == 1)
 			{
 				isCommented = 0;
@@ -212,6 +220,7 @@ make_command_stream (int (*get_next_byte) (void *), void *get_next_byte_argument
 					break;
             }
             
+            //End of command tree
             if(newLineCount == 2)
             {
             	newLineCount = 0;
@@ -225,6 +234,7 @@ make_command_stream (int (*get_next_byte) (void *), void *get_next_byte_argument
             	}
             	else
             	{
+            		//Add to stream
 		        	struct command_node* cn = malloc(sizeof(struct command_node));
 		        	cn->command = generate_command_tree(buffer);
 		        	
@@ -256,6 +266,7 @@ make_command_stream (int (*get_next_byte) (void *), void *get_next_byte_argument
         }
         else
         {
+        	//Add new character
             if(isCommented == 0)
             {
 				if(c == '(')
@@ -286,6 +297,7 @@ make_command_stream (int (*get_next_byte) (void *), void *get_next_byte_argument
     
     if(n > 0)
     {
+    	//Add final command!
     	if(inSubshell != 0)
     	{
 			fprintf(stderr,"%d: missing either a ( or )\n", lineNum);
@@ -294,7 +306,7 @@ make_command_stream (int (*get_next_byte) (void *), void *get_next_byte_argument
     
     	if((n+1) == bufferSize)
         {
-			//n+2 necessary to handle special cases
+			//n+1 necessary to handle special cases
             bufferSize = bufferSize * 10;
             buffer = (char*)realloc(buffer, bufferSize*sizeof(char));
         }
@@ -340,6 +352,7 @@ make_command_stream (int (*get_next_byte) (void *), void *get_next_byte_argument
 command_t
 read_command_stream (command_stream_t s)
 {
+	//Return next command tree from stream
     if(s->cursor == NULL)
     {
     	return NULL;
