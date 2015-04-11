@@ -30,11 +30,14 @@ free_command_t_recursive(command_t to_free)
 {
 	free(to_free->input);
 	free(to_free->output);
-	free_command_t_recursive(to_free->u.command[0]);
-	free_command_t_recursive(to_free->u.command[1]);
+	if(to_free->u.command[0] != 0)
+		free_command_t_recursive(to_free->u.command[0]);
+	if(to_free->u.command[1] != 0)
+		free_command_t_recursive(to_free->u.command[1]);
+	if(to_free->u.subshell_command != 0)
 	free_command_t_recursive(to_free->u.subshell_command);
 	int n = to_free->words - 1;
-	while(n >= 0)
+	while(n > 0)
 	{
 		free(to_free->u.word[n]);
 		n--;
@@ -49,6 +52,7 @@ pop(struct stack **head)
 	struct stack *temp = *head;
 	head[0] = head[0]->down;
 	command_t command = temp->command;
+	free(temp);
 	return command;
 }
 
