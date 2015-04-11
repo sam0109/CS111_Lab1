@@ -12,7 +12,7 @@ struct command_node
     struct command_node* next; //
 };
 
-struct stack
+struct stack //A stack implemented as a linked list to keep track of the commands and operators
 {
 	struct stack* down;
 	command_t command;
@@ -26,7 +26,7 @@ struct command_stream
 };
 
 void
-free_command_t_recursive(command_t to_free)
+free_command_t_recursive(command_t to_free)  //A function to clean up the stack when a command isn't necessary
 {
 	free(to_free->input);
 	free(to_free->output);
@@ -45,7 +45,7 @@ free_command_t_recursive(command_t to_free)
 }
 
 command_t
-pop(struct stack **head)
+pop(struct stack **head)  //Pop a command off a stack and return the corresponding command_t.
 {
 	if(head[0]->command == 0)
 		return 0;
@@ -57,7 +57,7 @@ pop(struct stack **head)
 }
 
 void
-push(struct stack **head, command_t new_command)
+push(struct stack **head, command_t new_command)  //Push a command onto a stack, changing the head to the new head
 {
 	struct stack* new_head = malloc(sizeof(struct stack));
 	new_head->command = new_command;
@@ -67,8 +67,8 @@ push(struct stack **head, command_t new_command)
 }
 
 void
-push_new_command(struct stack **head, enum command_type in_command)
-{
+push_new_command(struct stack **head, enum command_type in_command) //Create a command_t object of the specified type
+{																	//and then push it
 	command_t new_command = malloc(sizeof(struct command));
 	new_command->type = in_command;
 	new_command->status = -1;
@@ -387,7 +387,7 @@ scan_to_next_word(char *string, int *beginning_of_next_word, enum command_type *
 	*word = SIMPLE_COMMAND;  //otherwise it's a simple command
 
 	int current_char = *beginning_of_next_word;
-	while(string[current_char] != '\0' &&
+	while(string[current_char] != '\0' &&  //go until the command ends
 		  string[current_char] != ' ' &&
 		  string[current_char] != '(' &&
 		  string[current_char] != ')' &&
@@ -404,7 +404,7 @@ scan_to_next_word(char *string, int *beginning_of_next_word, enum command_type *
 }
 
 bool
-operator_test(command_t a, command_t b)
+operator_test(command_t a, command_t b)  //check the order of precedence
 {
 	if(a == 0 || b == 0)
 		return false;
@@ -428,14 +428,14 @@ operator_test(command_t a, command_t b)
 }
 
 int
-pop_and_combine(command_t command, struct stack **operators, struct stack **commands)
-{
-	while(operator_test(command, operators[0]->command))
+pop_and_combine(command_t command, struct stack **operators, struct stack **commands) //push a command on the stack
+{																					//but if it's a higher precedence, combine it and try again
+	while(operator_test(command, operators[0]->command))//check precedence
 	{
-		command_t popped_operator = pop(operators);
+		command_t popped_operator = pop(operators); //combine the command
 		popped_operator->u.command[1] = pop(commands);
 		popped_operator->u.command[0] = pop(commands);
-		if((popped_operator->type == AND_COMMAND ||
+		if((popped_operator->type == AND_COMMAND || //check to see if the commands match up
 		    popped_operator->type == OR_COMMAND ||
 		    popped_operator->type == PIPE_COMMAND)&&(
 		    popped_operator->u.command[1] == 0||
@@ -443,9 +443,9 @@ pop_and_combine(command_t command, struct stack **operators, struct stack **comm
 		{
 			return 1;
 		}
-		push(commands, popped_operator);
+		push(commands, popped_operator); //if they do, push the result
 	}
-	if(command->type == SUBSHELL_COMMAND && operators[0]->command->type == SUBSHELL_COMMAND)
+	if(command->type == SUBSHELL_COMMAND && operators[0]->command->type == SUBSHELL_COMMAND) //If it's a subshell command, free the first one pushed on the stack and then create the command.
 	{
 		free_command_t_recursive(pop(operators));
 		command->u.subshell_command = pop(commands);
@@ -453,10 +453,10 @@ pop_and_combine(command_t command, struct stack **operators, struct stack **comm
 	}
 	else
 	{
-		push(operators, command);
+		push(operators, command); //otherwise just push the last result
 	}
 	return 0;
-	/*
+	/*	     Psuedocode:
 	   	 	 a)pop all operators with >= precidence off operator stack
 	    	 b)for each operator, pop 2 commands off command stacks
 	    	 c)combine new command and put it on command stack
@@ -468,7 +468,7 @@ pop_and_combine(command_t command, struct stack **operators, struct stack **comm
 command_t
 generate_command_tree (char *input_string)
 {	
-	enum command_type word;
+	enum command_type word;				//initialize the stacks and some variables to track that's happening
 	bool next_word_is_input = false;
 	bool next_word_is_output = false;
 	struct stack* operators = malloc(sizeof(struct stack));
@@ -481,20 +481,20 @@ generate_command_tree (char *input_string)
 	{
 		switch(word)
 		{
-			case SIMPLE_COMMAND: ;
-				command_t new_command = malloc(sizeof(struct command));
+			case SIMPLE_COMMAND: ; //If it's a simple command, find the beginning and end and then push it.
+				command_t new_command = malloc(sizeof(struct command)); //Check for redirections also and handle them
 				int size_of_command = 0;
-				int max_size_of_command = 30;
+				int max_size_of_command = 100;
 				new_command->u.word = malloc(max_size_of_command * sizeof(char*));
 				new_command->type = SIMPLE_COMMAND;
 				new_command->status = -1;
 				int j = 0;
 				do
 				{
-					//if(size_of_command >= max_size_of_command - 1){
-					//	max_size_of_command += 3;
-					//	realloc(new_command->u.word, max_size_of_command * sizeof(char*));
-					//}
+					if(size_of_command >= max_size_of_command - 1){
+						max_size_of_command += 3;
+						new_command->u.word = realloc(new_command->u.word, (max_size_of_command + 1) * sizeof(char*));
+					}
 					int word_len = end_of_next_word - beginning_of_next_word;
 					int i = 0;
 					if(next_word_is_input)
