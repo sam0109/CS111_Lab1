@@ -33,3 +33,5 @@ command_t generate_command_tree (char* input_string);
 int is_valid_character(char c);
 
 int is_valid_operator(char c);
+
+void ORExecuter (command_t input);
