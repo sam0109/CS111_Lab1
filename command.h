@@ -41,4 +41,6 @@ void ORExecuter (command_t input);
 
 void SIMPLEExecuter (command_t input);
 
+void PIPEExecuter(command_t input);
+
 void SEQUENCEExecuter (command_t input);
