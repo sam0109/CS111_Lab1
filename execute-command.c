@@ -26,11 +26,11 @@ execute_command (command_t c, bool time_travel)
 				break;
 	
 			case SEQUENCE_COMMAND:
-				SEQUENCEExecutor(c);
+				SEQUENCEExecuter(c);
 				break;
 	
 			case OR_COMMAND:
-				ORExecutor(c);
+				ORExecuter(c);
 				break;
 	
 			case PIPE_COMMAND:
@@ -38,7 +38,7 @@ execute_command (command_t c, bool time_travel)
 				break;
 	
 			case SIMPLE_COMMAND:
-				SIMPLEExecutor(c);
+				SIMPLEExecuter(c);
 				break;
 	
 			case SUBSHELL_COMMAND:
@@ -54,7 +54,7 @@ ORExecuter (command_t input){
 	int p = fork();
     if(p==0)
 	{
-    	execute_command(input->u.command[0]);
+    	execute_command(input->u.command[0], false);
     	exit(input->u.command[0]->status);
 	}
 	else
@@ -64,7 +64,7 @@ ORExecuter (command_t input){
 		exitStatus = WEXITSTATUS(status);
 		if(exitStatus != 0)
 		{
-			execute_command(input->u.command[1]);
+			execute_command(input->u.command[1], false);
 			input->status = input->u.command[1]->status;
 			return;
 		}
@@ -73,7 +73,8 @@ ORExecuter (command_t input){
 
 void
 SIMPLEExecuter (command_t input){
-	input->u.word[0][input->words] = '\0';
+	input->u.word[input->words] = malloc(sizeof(char));
+	input->u.word[input->words][0] = '\0';
 	int p = fork();
     if(p==0)
 	{
@@ -92,14 +93,14 @@ void SEQUENCEExecuter (command_t input){
 	int p = fork();
     if(p==0)
 	{
-    	execute_command(input->u.command[0]);
+    	execute_command(input->u.command[0], false);
     	exit(input->u.command[0]->status);
 	}
 	else
 	{
 		int status;
 		waitpid(p, &status, 0);
-		execute_command(input->u.command[1]);
+		execute_command(input->u.command[1], false);
 		input->status = input->u.command[1]->status;
 		return;
 	}

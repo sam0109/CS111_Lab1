@@ -38,3 +38,7 @@ int is_valid_character(char c);
 int is_valid_operator(char c);
 
 void ORExecuter (command_t input);
+
+void SIMPLEExecuter (command_t input);
+
+void SEQUENCEExecuter (command_t input);
