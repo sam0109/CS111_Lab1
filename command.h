@@ -44,3 +44,7 @@ void SIMPLEExecuter (command_t input);
 void PIPEExecuter(command_t input);
 
 void SEQUENCEExecuter (command_t input);
+
+void ANDExecuter (command_t input);
+
+void SUBSHELLExecuter(command_t input);
