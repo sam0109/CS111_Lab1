@@ -34,7 +34,7 @@ execute_command (command_t c, bool time_travel)
 				break;
 	
 			case PIPE_COMMAND:
-		
+				PIPEExecuter(c);
 				break;
 	
 			case SIMPLE_COMMAND:
@@ -46,6 +46,46 @@ execute_command (command_t c, bool time_travel)
 				break;
 		}
 	}
+}
+
+void 
+PIPEExecuter(command_t input)
+{
+	int fd[2];
+	pipe(fd);
+	int firstPid = fork(); // execute right command
+	if(firstPid == 0)
+	{
+		close(fd[1]); // close unused write end
+		dup2(fd[0], 0);
+		execute_command(input->u.command[0], false);
+	}
+	else
+	{
+		int secondPid = fork();
+		if(secondPid == 0)
+		{
+			close(fd[0]); // close unused write end
+			dup2(fd[1], 1);
+			execute_command(input->u.command[0], false);
+		}
+		else
+		{
+			close(fd[0]);
+			close(fd[1]);
+			int status;
+			int returnedPID = waitpid(-1, &status, 0);
+			if(returnedPID == secondPid)
+			{
+				waitpid(firstPid, &status, 0);
+			}
+			else if(returnedPID == firstPid)
+			{
+				waitpid(secondPid, &status, 0);
+			}
+		}
+	}
+
 }
 
 void
