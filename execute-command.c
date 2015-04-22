@@ -22,7 +22,7 @@ execute_command (command_t c, bool time_travel)
 		switch(c->type)
 		{
 			case AND_COMMAND:
-		
+				ANDExecuter(c);
 				break;
 	
 			case SEQUENCE_COMMAND:
@@ -42,7 +42,7 @@ execute_command (command_t c, bool time_travel)
 				break;
 	
 			case SUBSHELL_COMMAND:
-		
+				SUBSHELLExecuter(c);
 				break;
 		}
 	}
@@ -72,13 +72,63 @@ ORExecuter (command_t input){
 }
 
 void
-SIMPLEExecuter (command_t input){
-	input->u.word[input->words] = malloc(sizeof(char));
-	input->u.word[input->words][0] = '\0';
+ANDExecuter (command_t input){
+	int exitStatus;
 	int p = fork();
     if(p==0)
 	{
-    	execvp(input->u.word[0], input->u.word);
+    	execute_command(input->u.command[0], false);
+    	exit(input->u.command[0]->status);
+	}
+	else
+	{
+		int status;
+		waitpid(p, &status, 0);
+		exitStatus = WEXITSTATUS(status);
+		if(exitStatus == 0)
+		{
+			execute_command(input->u.command[1], false);
+			input->status = input->u.command[1]->status;
+			return;
+		}
+	}
+}
+
+void
+SIMPLEExecuter (command_t input){
+	input->u.word[input->words] = malloc(sizeof(char));
+	input->u.word[input->words][0] = '\0';
+	int saved_stdout, saved_stdin = 0;
+
+	if(input->input != NULL)
+	{
+		saved_stdin = dup(0);
+		int fd = open (input->input, O_CREAT | O_TRUNC | O_WRONLY, 0644);
+		if(fd<0) fd = 0;
+		dup2(fd, 0);
+	}
+
+	if(input->output != NULL)
+	{
+		saved_stdout = dup(1);
+		int fd = open (input->output, O_CREAT | O_TRUNC | O_WRONLY, 0644);
+		if(fd<0) fd = 1;
+		dup2(fd, 1);
+	}
+
+	int p = fork();
+    if(p==0)
+	{
+    	if(input->u.word[0] != NULL &&
+    			input->u.word[0][0] == 'e' &&
+    			input->u.word[0][1] == 'x' &&
+    			input->u.word[0][2] == 'e' &&
+    			input->u.word[0][3] == 'c'){
+    		execvp(input->u.word[1], &input->u.word[1]);
+    	}
+    	else{
+    		execvp(input->u.word[0], input->u.word);
+    	}
 	}
 	else
 	{
@@ -86,10 +136,24 @@ SIMPLEExecuter (command_t input){
 		waitpid(p, &status, 0);
 		input->status = WEXITSTATUS(status);
 	}
+
+    if(input->output != NULL)
+    {
+    	dup2(saved_stdout, 1);
+    	close(saved_stdout);
+    }
+
+    if(input->input != NULL)
+    {
+     	dup2(saved_stdin, 0);
+       	close(saved_stdin);
+    }
+
     return;
 }
 
-void SEQUENCEExecuter (command_t input){
+void
+SEQUENCEExecuter (command_t input){
 	int p = fork();
     if(p==0)
 	{
@@ -104,4 +168,40 @@ void SEQUENCEExecuter (command_t input){
 		input->status = input->u.command[1]->status;
 		return;
 	}
+}
+
+void
+SUBSHELLExecuter(command_t input){
+	int saved_stdout, saved_stdin = 0;
+
+
+	if(input->input != NULL)
+	{
+		saved_stdin = dup(0);
+		int fd = open (input->input, O_CREAT | O_TRUNC | O_WRONLY, 0644);
+		if(fd<0) fd = 0;
+		dup2(fd, 0);
+	}
+
+	if(input->output != NULL)
+	{
+		saved_stdout = dup(1);
+		int fd = open (input->output, O_CREAT | O_TRUNC | O_WRONLY, 0644);
+		if(fd<0) fd = 1;
+		dup2(fd, 1);
+	}
+
+	execute_command(input->u.subshell_command, false);
+
+    if(input->output != NULL)
+    {
+    	dup2(saved_stdout, 1);
+    	close(saved_stdout);
+    }
+
+    if(input->input != NULL)
+    {
+     	dup2(saved_stdin, 0);
+       	close(saved_stdin);
+    }
 }
