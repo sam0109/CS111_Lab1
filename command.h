@@ -4,6 +4,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <unistd.h>
+#include <sys/wait.h>
+#include <fcntl.h>
 
 typedef struct command *command_t;
 typedef struct command_stream *command_stream_t;
