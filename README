@@ -17,3 +17,13 @@ making the code easier to test and service.
 The generate command tree function makes use of two stacks a command stack and an operator
 stack to keep track of operators and operands. Using a similar concept as post-fix notation
 we are able to utilize the two stacks to effectively determine the order of parsed commands.
+
+Lab 1 part b)
+This part of the lab we execute the command tree made in part a. In order to do this we traverse through
+the command tree using a DFS recursive algorithm. At each level we fork the main process execute the command
+below and then exit with the exitstatus. Our implementation is very robust because it gaurantees that we always
+keep at least one copy of the original parent process. We also gaurantee that whenever we call execvp it is called
+on its own separate process so when it exits it wont accidentally kill something that wasn't meant to be killed.
+This method also allows for us to easily perform redirects as if we need to change an I/O we simply change it then,
+go down using the correct redirect then once we return to the process that called for the redirect change
+we can just revert it and then go back up as if nothing ever changed for the commands above it.
