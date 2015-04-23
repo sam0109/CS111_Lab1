@@ -5,9 +5,6 @@
 
 #include <error.h>
 
-/* FIXME: You may need to add #include directives, macro definitions,
-   static function definitions, etc.  */
-
 int
 command_status (command_t c)
 {
@@ -17,6 +14,11 @@ command_status (command_t c)
 void
 execute_command (command_t c, bool time_travel)
 {
+	if(c==NULL)
+	{
+		return;
+	}
+	
 	if(!time_travel)
 	{
 		switch(c->type)
@@ -53,12 +55,15 @@ PIPEExecuter(command_t input)
 {
 	int fd[2];
 	pipe(fd);
+	int saved_stdin = dup(0);
+	int saved_stdout = dup(1);
 	int firstPid = fork(); // execute right command
 	if(firstPid == 0)
 	{
 		close(fd[1]); // close unused write end
 		dup2(fd[0], 0);
-		execute_command(input->u.command[0], false);
+		execute_command(input->u.command[1], false);
+		exit(input->u.command[1]->status);
 	}
 	else
 	{
@@ -68,6 +73,7 @@ PIPEExecuter(command_t input)
 			close(fd[0]); // close unused write end
 			dup2(fd[1], 1);
 			execute_command(input->u.command[0], false);
+			exit(input->u.command[0]->status);
 		}
 		else
 		{
@@ -83,6 +89,12 @@ PIPEExecuter(command_t input)
 			{
 				waitpid(secondPid, &status, 0);
 			}
+			
+			int exitStatus = WEXITSTATUS(status);
+			input->status = exitStatus;
+			
+			dup2(saved_stdin, 0);
+			dup2(saved_stdout, 1);
 		}
 	}
 
@@ -136,8 +148,11 @@ ANDExecuter (command_t input){
 
 void
 SIMPLEExecuter (command_t input){
-	input->u.word[input->words] = malloc(sizeof(char));
-	input->u.word[input->words][0] = '\0';
+	input->u.word[input->words] = malloc(sizeof(char*));
+	
+	char* end = {'\0'};
+	
+	input->u.word[input->words]= end;
 	int saved_stdout, saved_stdin = 0;
 
 	if(input->input != NULL)
@@ -166,7 +181,8 @@ SIMPLEExecuter (command_t input){
     			input->u.word[0][3] == 'c'){
     		execvp(input->u.word[1], &input->u.word[1]);
     	}
-    	else{
+    	else
+    	{
     		execvp(input->u.word[0], input->u.word);
     	}
 	}
@@ -204,8 +220,11 @@ SEQUENCEExecuter (command_t input){
 	{
 		int status;
 		waitpid(p, &status, 0);
-		execute_command(input->u.command[1], false);
+		if(input->u.command[1] != NULL)
+		{
+				execute_command(input->u.command[1], false);
 		input->status = input->u.command[1]->status;
+		}
 		return;
 	}
 }
