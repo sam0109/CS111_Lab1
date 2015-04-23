@@ -481,7 +481,7 @@ pop_and_combine(command_t command, struct stack **operators, struct stack **comm
 command_t
 generate_command_tree (char *input_string)
 {	
-	enum command_type word;				//initialize the stacks and some variables to track that's happening
+	enum command_type word;				//initialize the stacks and some variables to track what's happening
 	bool next_word_is_input = false;
 	bool next_word_is_output = false;
 	struct stack* operators = malloc(sizeof(struct stack));
@@ -542,11 +542,11 @@ generate_command_tree (char *input_string)
 						}
 						new_command->u.word[j][word_len] = '\0';
 					}
-					if(input_string[end_of_next_word + 1] == '<' || input_string[end_of_next_word] == '<')
+					if((input_string[end_of_next_word + 1] == '<' && input_string[end_of_next_word] == ' ' )|| input_string[end_of_next_word] == '<')
 					{
 						next_word_is_input = true;
 					}
-					if(input_string[end_of_next_word + 1] == '>' || input_string[end_of_next_word] == '>')
+					if((input_string[end_of_next_word + 1] == '>' && input_string[end_of_next_word] == ' ' ) || input_string[end_of_next_word] == '>')
 					{
 						next_word_is_output = true;
 					}
@@ -568,10 +568,46 @@ generate_command_tree (char *input_string)
 				}
 				else
 				{
+
 					command_t new_command = malloc(sizeof(struct command));
 					new_command->type = SUBSHELL_COMMAND;
 					new_command->status = -1;
 					new_command->u.subshell_command = 0;
+					while((input_string[end_of_next_word + 1] == '<' &&
+							input_string[end_of_next_word] == ' ' )||
+							input_string[end_of_next_word] == '<' ||
+							(input_string[end_of_next_word + 1] == '>' &&
+							input_string[end_of_next_word] == ' ' )||
+							input_string[end_of_next_word] == '>')
+					{
+
+						if(input_string[end_of_next_word + 1] == '<' || input_string[end_of_next_word] == '<')
+						{
+							beginning_of_next_word = end_of_next_word;
+							end_of_next_word = scan_to_next_word(input_string, &beginning_of_next_word, &word);
+							new_command->input = malloc((end_of_next_word - beginning_of_next_word) * sizeof(char));
+							int i = 0;
+							while(i < end_of_next_word - beginning_of_next_word)
+							{
+								new_command->input[i] = input_string[beginning_of_next_word + i];
+							}
+							new_command->input[i + 1] = '\0';
+						}
+						if(input_string[end_of_next_word + 1] == '>' || input_string[end_of_next_word] == '>')
+						{
+							beginning_of_next_word = end_of_next_word;
+							end_of_next_word = scan_to_next_word(input_string, &beginning_of_next_word, &word);
+							new_command->output = malloc((end_of_next_word - beginning_of_next_word) * sizeof(char));
+							int i = 0;
+							while(i < end_of_next_word - beginning_of_next_word)
+							{
+								new_command->output[i] = input_string[beginning_of_next_word + i];
+								i++;
+							}
+							new_command->output[i + 1] = '\0';
+						}
+					}
+
 					if(pop_and_combine(new_command, &operators, &commands))
 						return 0;
 				}

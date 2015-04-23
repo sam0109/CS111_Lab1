@@ -31,6 +31,13 @@ g<h
 a<b>c|d<e>f|g<h>i
 EOF
 
+cat >testb.sh <<'EOF'
+(echo a || echo b)
+
+echo a > testb2.exp && echo b
+
+EOF
+
 cat >test.exp <<'EOF'
 # 1
   true
@@ -78,10 +85,23 @@ cat >test.exp <<'EOF'
     g<h>i
 EOF
 
+cat >testb.exp <<'EOF'
+a
+b
+EOF
+
 ../timetrash -p test.sh >test.out 2>test.err || exit
+
+../timetrash testb.sh >testb.out 2>testb.err || exit
 
 diff -u test.exp test.out || exit
 test ! -s test.err || {
+  cat test.err
+  exit 1
+}
+
+diff -u testb.exp testb.out || exit
+test ! -s testb.err || {
   cat test.err
   exit 1
 }
