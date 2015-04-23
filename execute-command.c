@@ -14,6 +14,8 @@ command_status (command_t c)
 void
 execute_command (command_t c, bool time_travel)
 {
+	//Takes in a command and then sends command to appropriate handler
+	//Verifies command is a real command as well (not NULL)
 	if(c==NULL)
 	{
 		return;
@@ -53,6 +55,7 @@ execute_command (command_t c, bool time_travel)
 void 
 PIPEExecuter(command_t input)
 {
+	//First create the pipe and back up stdin and stdout
 	int fd[2];
 	pipe(fd);
 	int saved_stdin = dup(0);
@@ -61,22 +64,22 @@ PIPEExecuter(command_t input)
 	if(firstPid == 0)
 	{
 		close(fd[1]); // close unused write end
-		dup2(fd[0], 0);
-		execute_command(input->u.command[1], false);
-		exit(input->u.command[1]->status);
+		dup2(fd[0], 0); //Set pipe input
+		execute_command(input->u.command[1], false); //execute command
+		exit(input->u.command[1]->status); //exit process
 	}
 	else
 	{
 		int secondPid = fork();
 		if(secondPid == 0)
-		{
+		{   //Do other side of pipe (same as above)
 			close(fd[0]); // close unused write end
 			dup2(fd[1], 1);
 			execute_command(input->u.command[0], false);
 			exit(input->u.command[0]->status);
 		}
 		else
-		{
+		{   //In parent wait for pipe to finish then restore I/O
 			close(fd[0]);
 			close(fd[1]);
 			int status;
@@ -101,7 +104,8 @@ PIPEExecuter(command_t input)
 }
 
 void
-ORExecuter (command_t input){
+ORExecuter (command_t input)
+{   //Fork from the parent, have parent continue perform left side
 	int exitStatus;
 	int p = fork();
     if(p==0)
@@ -110,7 +114,7 @@ ORExecuter (command_t input){
     	exit(input->u.command[0]->status);
 	}
 	else
-	{
+	{   //let child wait for parent to die then continue and do right side or short circuit
 		int status;
 		waitpid(p, &status, 0);
 		exitStatus = WEXITSTATUS(status);
@@ -120,20 +124,29 @@ ORExecuter (command_t input){
 			input->status = input->u.command[1]->status;
 			return;
 		}
+		else
+		{
+			input->status = exitStatus;
+			return;
+		}
 	}
 }
 
 void
-ANDExecuter (command_t input){
+ANDExecuter (command_t input)
+{
+	//Same thought process as ORExecutor
 	int exitStatus;
 	int p = fork();
     if(p==0)
 	{
+		//Have parent execute left and then die
     	execute_command(input->u.command[0], false);
     	exit(input->u.command[0]->status);
 	}
 	else
 	{
+		//Let child wait for parent to die then execute right or short circuit
 		int status;
 		waitpid(p, &status, 0);
 		exitStatus = WEXITSTATUS(status);
@@ -143,11 +156,18 @@ ANDExecuter (command_t input){
 			input->status = input->u.command[1]->status;
 			return;
 		}
+		else
+		{
+			input->status = exitStatus;
+			return;
+		}
 	}
 }
 
 void
-SIMPLEExecuter (command_t input){
+SIMPLEExecuter (command_t input)
+{
+	//Set the last word equal to the null byte
 	input->u.word[input->words] = malloc(sizeof(char*));
 	
 	char* end = {'\0'};
@@ -155,6 +175,8 @@ SIMPLEExecuter (command_t input){
 	input->u.word[input->words]= end;
 	int saved_stdout, saved_stdin = 0;
 
+	//Check to see if any redirects
+	//If so adjust the stream and backup old I/O
 	if(input->input != NULL)
 	{
 		saved_stdin = dup(0);
@@ -171,28 +193,33 @@ SIMPLEExecuter (command_t input){
 		dup2(fd, 1);
 	}
 
+	//Fork the process so that way executing the command won't kill the main process
 	int p = fork();
     if(p==0)
 	{
-    	if(input->u.word[0] != NULL &&
-    			input->u.word[0][0] == 'e' &&
-    			input->u.word[0][1] == 'x' &&
-    			input->u.word[0][2] == 'e' &&
-    			input->u.word[0][3] == 'c'){
+    	if(input->u.word[0] != NULL &&  input->u.word[0][0] == 'e' 
+    								&&	input->u.word[0][1] == 'x' 
+    								&&	input->u.word[0][2] == 'e' 
+    								&&	input->u.word[0][3] == 'c')
+    	{
+    		//If exec is called handle special case
     		execvp(input->u.word[1], &input->u.word[1]);
     	}
     	else
     	{
+    		//Otherwise just run main command
     		execvp(input->u.word[0], input->u.word);
     	}
 	}
 	else
 	{
+		//Wait for parent to die and let child carry on the torch
 		int status;
 		waitpid(p, &status, 0);
 		input->status = WEXITSTATUS(status);
 	}
 
+	//Fix the I/O stream
     if(input->output != NULL)
     {
     	dup2(saved_stdout, 1);
@@ -209,7 +236,9 @@ SIMPLEExecuter (command_t input){
 }
 
 void
-SEQUENCEExecuter (command_t input){
+SEQUENCEExecuter (command_t input)
+{
+	//Executes the left and right side of a sequence command
 	int p = fork();
     if(p==0)
 	{
@@ -220,17 +249,26 @@ SEQUENCEExecuter (command_t input){
 	{
 		int status;
 		waitpid(p, &status, 0);
+		
 		if(input->u.command[1] != NULL)
-		{
-				execute_command(input->u.command[1], false);
-		input->status = input->u.command[1]->status;
+		{	//exits with status of last command run in sequence
+			execute_command(input->u.command[1], false);
+			input->status = input->u.command[1]->status;
 		}
+		else
+		{
+			input->status = WEXITSTATUS(status);
+		}
+		
 		return;
 	}
 }
 
 void
-SUBSHELLExecuter(command_t input){
+SUBSHELLExecuter(command_t input)
+{
+	//Check and Adjust for any redirect
+	//Save I/O
 	int saved_stdout, saved_stdin = 0;
 
 
@@ -250,8 +288,10 @@ SUBSHELLExecuter(command_t input){
 		dup2(fd, 1);
 	}
 
+	//Execute command inside of subsheel
 	execute_command(input->u.subshell_command, false);
 
+	//Fix any I/O
     if(input->output != NULL)
     {
     	dup2(saved_stdout, 1);
