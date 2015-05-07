@@ -27,3 +27,17 @@ on its own separate process so when it exits it wont accidentally kill something
 This method also allows for us to easily perform redirects as if we need to change an I/O we simply change it then,
 go down using the correct redirect then once we return to the process that called for the redirect change
 we can just revert it and then go back up as if nothing ever changed for the commands above it.
+
+Lab 1 part c)
+In our final part of this project we allow for multiple command trees to run in parallel. In order to
+do this safely though we need to check all dependencies of each command tree and make sure that if
+there are any dependencies those command tree process will wait until the dependencies are handled.
+Our implementation was broken up into several parts. The first part of our implementation creates a
+read and write list of everything used by the command tree. We then cross reference that list with all
+other lists and create a dependency tree. Our dependency tree ensures that each process knows what
+command trees it is waiting for so that way in the future in can perform a waitpid to make sure that
+all dependencies have run first. After building the dependency tree we then can go ahead and fork off
+a process for each command. The first thing every child does is check to see if it has any dependencies
+if it does it then waits for the pid of its dependency. Since the dependency is gauranteed to be created
+first this method is gauranteed to run and thusly will work correctly. The addition of running the
+command trees in parallel will then allow for the terminal to run faster.
