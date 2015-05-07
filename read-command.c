@@ -5,13 +5,6 @@
 
 #include <error.h>
 
-//A linked list for command trees
-struct command_node
-{
-    struct command* command; //stores root of a command tree
-    struct command_node* next; //
-};
-
 struct stack //A stack implemented as a linked list to keep track of the commands and operators
 {
 	struct stack* down;

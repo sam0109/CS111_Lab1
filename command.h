@@ -12,6 +12,13 @@
 typedef struct command *command_t;
 typedef struct command_stream *command_stream_t;
 
+//A linked list for command trees
+struct command_node
+{
+    struct command* command; //stores root of a command tree
+    struct command_node* next; //
+};
+
 struct command_stream
 {
     struct command_node *head;
@@ -19,9 +26,14 @@ struct command_stream
     struct command_node* cursor;
 };
 
-typedef struct {
+typedef struct graphNode GraphNode;
+
+struct graphNode
+{
      command_t command;
-     struct GraphNode** before;
+     GraphNode** before;
+     int num_dependencies;
+     int max_dependencies;
      char** read_list;
      int read_size;
      int max_read_size;
@@ -29,17 +41,25 @@ typedef struct {
      int write_size;
      int max_write_size;
      pid_t pid; //initialized to 1
-}GraphNode;
+};
 
-typedef struct {
-	GraphNode* above;
-	GraphNode* below;
-}Queue;
+typedef struct queue Queue;
 
-typedef struct{
+struct queue
+{
+	GraphNode* node;
+	Queue* next;
+};
+
+typedef struct dependencyGraph DependencyGraph;
+
+struct dependencyGraph
+{
      Queue* no_dependencies;
+     Queue* no_dependencies_tail;
      Queue* dependencies;
-}DependencyGraph;
+     Queue* dependencies_tail;
+};
 
 
 /* Create a command stream from GETBYTE and ARG.  A reader of

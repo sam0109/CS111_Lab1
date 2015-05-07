@@ -110,7 +110,7 @@ GraphNode* generate_GraphNode(command_t command){
 	return return_graph;
 }
 
-bool check_dependencies(GraphNode* a, GraphNode* b)
+bool check_dependencies( GraphNode* a, GraphNode* b)
 {
 	return true;
 }
@@ -120,12 +120,83 @@ DependencyGraph create_dependency_graph(command_stream_t stream)
 	DependencyGraph* graph = malloc(sizeof(DependencyGraph));
 	graph->dependencies = malloc(sizeof(Queue));
 	graph->no_dependencies = malloc(sizeof(Queue));
+	graph->dependencies_tail = malloc(sizeof(Queue));
+	graph->no_dependencies_tail = malloc(sizeof(Queue));
 	command_t command;
 	while ((command = read_command_stream (stream)))
 	{
-		GraphNode* g = generate_GraphNode(command);
-		while(check_dependencies()){
-
+	    GraphNode* g = generate_GraphNode(command);
+		
+		g->num_dependencies = 0;
+		g->max_dependencies = 100;
+		g->before = malloc(sizeof(GraphNode*) * g->max_dependencies);
+		
+	    Queue* cursor = graph->no_dependencies;
+		bool hasDependency = false;
+		while(cursor != NULL)
+		{
+			if(check_dependencies(g, cursor->node))
+			{
+				hasDependency = true;
+				g->before[g->num_dependencies] = cursor->node;
+				g->num_dependencies += 1;
+				
+				if(g->num_dependencies >= g->max_dependencies)
+				{
+					g->max_dependencies += 100;
+	 				g->before = (GraphNode**)realloc(g->before, g->max_dependencies*sizeof(GraphNode*));
+				}
+			}
+			
+			cursor = cursor->next;
+		}
+		
+		cursor = graph->dependencies;
+		while(cursor != NULL)
+		{
+			if(check_dependencies(g, cursor->node))
+			{
+				hasDependency = true;
+				g->before[g->num_dependencies] = cursor->node;
+				g->num_dependencies += 1;
+				
+				if(g->num_dependencies >= g->max_dependencies)
+				{
+					g->max_dependencies += 100;
+	 				g->before = (GraphNode**)realloc(g->before, g->max_dependencies*sizeof(GraphNode*));
+				}
+			}
+			
+			cursor = cursor->next;
+		}
+		
+		if(!hasDependency)
+		{
+			Queue* add = malloc(sizeof(Queue));
+			if(graph->no_dependencies == NULL)
+			{
+				graph->no_dependencies = add;
+				graph->no_dependencies_tail = graph->no_dependencies;
+			}
+			else
+			{
+				graph->no_dependencies_tail->next = add;
+				graph->no_dependencies_tail = graph->no_dependencies_tail->next;
+			}
+		}
+		else
+		{
+			Queue* add = malloc(sizeof(Queue));
+			if(graph->dependencies == NULL)
+			{
+				graph->dependencies = add;
+				graph->dependencies_tail = graph->dependencies;
+			}
+			else
+			{
+				graph->dependencies_tail->next = add;
+				graph->dependencies_tail = graph->dependencies_tail->next;
+			}
 		}
 	}
 	
