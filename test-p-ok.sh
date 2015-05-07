@@ -38,6 +38,17 @@ echo a > testb2.exp && echo b
 
 EOF
 
+cat >testc.sh <<'EOF'
+echo test1 >testc.out
+
+echo test2 >testc.out
+
+echo test3 >testc.out
+
+echo test4 >testc2.out
+
+EOF
+
 cat >test.exp <<'EOF'
 # 1
   true
@@ -90,9 +101,19 @@ a
 b
 EOF
 
+cat >testc.exp <<'EOF'
+test3
+EOF
+
+cat >testc2.exp <<'EOF'
+test4
+EOF
+
 ../timetrash -p test.sh >test.out 2>test.err || exit
 
 ../timetrash testb.sh >testb.out 2>testb.err || exit
+
+../timetrash -t testc.sh 2>testc.err
 
 diff -u test.exp test.out || exit
 test ! -s test.err || {
@@ -102,7 +123,14 @@ test ! -s test.err || {
 
 diff -u testb.exp testb.out || exit
 test ! -s testb.err || {
-  cat test.err
+  cat testb.err
+  exit 1
+}
+
+diff -u testc.exp testc.out || exit
+diff -u testc2.exp testc2.out || exit
+test ! -s testc.err || {
+  cat testc.err
   exit 1
 }
 
