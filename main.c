@@ -182,7 +182,7 @@ bool check_dependencies( GraphNode* a, GraphNode* b)
 	return false;
 }
 
-DependencyGraph create_dependency_graph(command_stream_t stream)
+DependencyGraph* create_dependency_graph(command_stream_t stream)
 {
 	DependencyGraph* graph = malloc(sizeof(DependencyGraph));
 	graph->dependencies = malloc(sizeof(Queue));
@@ -268,7 +268,7 @@ DependencyGraph create_dependency_graph(command_stream_t stream)
 	}
 	
 	stream->cursor = stream->head;
-	
+	return graph;
 }
 
 int
