@@ -409,7 +409,10 @@ main (int argc, char **argv)
 			int status = 0;
 			waitpid(pids[j], &status, WEXITED);
 			j++;
+			
+			last_command->status = WEXITSTATUS(status);
 		}
+		
 	}
   return print_tree || !last_command ? 0 : command_status (last_command);
 }
