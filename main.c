@@ -25,8 +25,10 @@ get_next_byte (void *stream)
 
 void generate_read_write_lists(GraphNode* node, command_t command)
 {
+	//We want to generate lists of all read and writes of a command tree
 	 if (command->type == SIMPLE_COMMAND)
 	 {
+	 	//Add all files that are being read which can potentially be dependencies
 	 	if(command->input)
 	 	{
 	 		if(node->read_size >= node->max_read_size)
@@ -54,6 +56,7 @@ void generate_read_write_lists(GraphNode* node, command_t command)
 	 	}
 	 	if(command->output)
 	 	{
+	 		//Add all outputs
 	 		if(node->write_size >= node->max_write_size)
 	 		{
 	 			node->max_write_size += 100;
@@ -65,6 +68,7 @@ void generate_read_write_lists(GraphNode* node, command_t command)
      }
      else if (command->type == SUBSHELL_COMMAND)
      {
+     	//Repeat for subshell command because also can have dependencies
      	if(command->input)
 	 	{
 	 		if(node->read_size >= node->max_read_size)
@@ -90,6 +94,7 @@ void generate_read_write_lists(GraphNode* node, command_t command)
      }
      else
      {
+     	//Recursively traverse the command tree
      	if(command->u.command[0])
      		generate_read_write_lists(node,command->u.command[0]);
      	if(command->u.command[1])
@@ -97,7 +102,9 @@ void generate_read_write_lists(GraphNode* node, command_t command)
      }
 }
 
-GraphNode* generate_GraphNode(command_t command){
+GraphNode* generate_GraphNode(command_t command)
+{
+	//Create a GraphNode and get all of its guts initialized in useful state
 	GraphNode* return_graph = malloc(sizeof(GraphNode));
 	return_graph->max_read_size = 100;
 	return_graph->read_size = 0;
@@ -112,6 +119,7 @@ GraphNode* generate_GraphNode(command_t command){
 
 bool check_dependencies( GraphNode* a, GraphNode* b)
 {
+	//This function checks read and write list to determine dependencies
 	int i = 0;
 	int j = 0;
 	int k = 0;
@@ -119,6 +127,7 @@ bool check_dependencies( GraphNode* a, GraphNode* b)
 	{
 		while(j < b->write_size)
 		{
+			//Check to see if there are any matches in write and write
 			bool match = true;
 			while(a->write_list[i][k] != '\0' && b->write_list[j][k] != '\0')
 			{
@@ -141,6 +150,7 @@ bool check_dependencies( GraphNode* a, GraphNode* b)
 	{
 		while(j < b->write_size)
 		{
+			//check for read and write
 			bool match = true;
 			while(a->read_list[i][k] != '\0' && b->write_list[j][k] != '\0')
 			{
@@ -163,6 +173,7 @@ bool check_dependencies( GraphNode* a, GraphNode* b)
 	{
 		while(j < b->read_size)
 		{
+			//check for write and write
 			bool match = true;
 			while(a->write_list[i][k] != '\0' && b->read_list[j][k] != '\0')
 			{
@@ -184,6 +195,7 @@ bool check_dependencies( GraphNode* a, GraphNode* b)
 
 DependencyGraph* create_dependency_graph(command_stream_t stream)
 {
+	//Create Dependency Tree
 	DependencyGraph* graph = malloc(sizeof(DependencyGraph));
 	//graph->dependencies = malloc(sizeof(Queue));
 	//graph->no_dependencies = malloc(sizeof(Queue));
@@ -194,6 +206,7 @@ DependencyGraph* create_dependency_graph(command_stream_t stream)
 	command_t command;
 	while ((command = read_command_stream (stream)))
 	{
+		//Read each command tree and generate graph Node
 	    GraphNode* g = generate_GraphNode(command);
 		
 		g->num_dependencies = 0;
@@ -205,6 +218,7 @@ DependencyGraph* create_dependency_graph(command_stream_t stream)
 		int i = 0;
 		while(i < graph->size_no_dependencies)
 		{
+			//Determine where graph node belongs
 			if(check_dependencies(g, cursor->node))
 			{
 				hasDependency = true;
@@ -226,6 +240,7 @@ DependencyGraph* create_dependency_graph(command_stream_t stream)
 		i = 0;
 		while(i < graph->size_dependencies)
 		{
+			//Keep determining where graph node belongs
 			if(check_dependencies(g, cursor->node))
 			{
 				hasDependency = true;
@@ -243,6 +258,7 @@ DependencyGraph* create_dependency_graph(command_stream_t stream)
 			i++;
 		}
 		
+		//Add graph node to appropriate Queue (note queue is very similar to linked list :D)
 		if(!hasDependency)
 		{
 			Queue* add = malloc(sizeof(Queue));
@@ -277,6 +293,7 @@ DependencyGraph* create_dependency_graph(command_stream_t stream)
 		}
 	}
 	
+	//Make sure we return stream in a valid state
 	stream->cursor = stream->head;
 	return graph;
 }
@@ -331,6 +348,7 @@ main (int argc, char **argv)
 	}
 	else
 	{
+		//If time_travel we then want to parallize everything
 		DependencyGraph *g = create_dependency_graph(command_stream);
 		
 		Queue* cursor = g->no_dependencies;
@@ -340,6 +358,7 @@ main (int argc, char **argv)
 
 		while(i < g->size_no_dependencies)
 		{
+			//They have no dependencies so they can run wild!
 			cursor->node->pid = fork();
 			last_command = cursor->node->command;
 			if(cursor->node->pid == 0){
@@ -356,6 +375,7 @@ main (int argc, char **argv)
 		i = 0;
 		while(i < g->size_dependencies)
 		{
+			//Make sure these wait for their dependencies to run first using waitpid
 			cursor->node->pid = fork();
 			last_command = cursor->node->command;
 			if(cursor->node->pid == 0){
@@ -385,6 +405,7 @@ main (int argc, char **argv)
 
 		while(j < (g->size_dependencies + g->size_no_dependencies))
 		{
+			//Make sure parent waits for every child to finish!!!
 			int status = 0;
 			waitpid(pids[j], &status, WEXITED);
 			j++;
