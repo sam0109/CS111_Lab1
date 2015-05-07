@@ -300,21 +300,42 @@ main (int argc, char **argv)
   command_stream_t command_stream =
     make_command_stream (get_next_byte, script_stream);
 
-  command_t last_command = NULL;
-  command_t command;
-  while ((command = read_command_stream (command_stream)))
-    {
-      if (print_tree)
+	if(!time_travel)
 	{
-	  printf ("# %d\n", command_number++);
-	  print_command (command);
+		command_t last_command = NULL;
+		command_t command;
+		while ((command = read_command_stream (command_stream)))
+		{
+		  	if (print_tree)
+			{
+			  printf ("# %d\n", command_number++);
+			  print_command (command);
+			}
+			  else
+			{
+			  last_command = command;
+			  execute_command (command, time_travel);
+			}
+		}
 	}
-      else
+	else
 	{
-	  last_command = command;
-	  execute_command (command, time_travel);
+		DependencyGraph *g = create_dependency_graph(command_stream);
+		
+		Queue* cursor = g->no_dependencies;
+		while(cursor != NULL)
+		{
+			cursor->node;
+			cursor = cursor->next;
+		}
+		
+		cursor = = g->dependencies;
+		while(cursor != NULL)
+		{
+			
+			cursor = cursor->next;
+		}
 	}
-    }
 
   return print_tree || !last_command ? 0 : command_status (last_command);
 }
