@@ -21,7 +21,7 @@ execute_command (command_t c, bool time_travel)
 		return;
 	}
 	
-	if(!time_travel)
+	if(!time_travel || time_travel)
 	{
 		switch(c->type)
 		{

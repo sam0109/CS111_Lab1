@@ -57,8 +57,10 @@ struct dependencyGraph
 {
      Queue* no_dependencies;
      Queue* no_dependencies_tail;
+     int size_no_dependencies;
      Queue* dependencies;
      Queue* dependencies_tail;
+     int size_dependencies;
 };
 
 

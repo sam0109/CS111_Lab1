@@ -40,7 +40,7 @@ void generate_read_write_lists(GraphNode* node, command_t command)
 	 	int i = 1;
 	 	while(i < command->words)
 	 	{
-	 		if(command->u.word[i][0] != '-')
+	 		if(command->u.word[i] != NULL && command->u.word[i][0] != '-')
 	 		{
 	 			if(node->read_size >= node->max_read_size)
 	 			{
@@ -185,10 +185,12 @@ bool check_dependencies( GraphNode* a, GraphNode* b)
 DependencyGraph* create_dependency_graph(command_stream_t stream)
 {
 	DependencyGraph* graph = malloc(sizeof(DependencyGraph));
-	graph->dependencies = malloc(sizeof(Queue));
-	graph->no_dependencies = malloc(sizeof(Queue));
-	graph->dependencies_tail = malloc(sizeof(Queue));
-	graph->no_dependencies_tail = malloc(sizeof(Queue));
+	//graph->dependencies = malloc(sizeof(Queue));
+	//graph->no_dependencies = malloc(sizeof(Queue));
+	//graph->dependencies_tail = malloc(sizeof(Queue));
+	//graph->no_dependencies_tail = malloc(sizeof(Queue));
+	graph->size_dependencies = 0;
+	graph->size_no_dependencies = 0;
 	command_t command;
 	while ((command = read_command_stream (stream)))
 	{
@@ -200,7 +202,8 @@ DependencyGraph* create_dependency_graph(command_stream_t stream)
 		
 	    Queue* cursor = graph->no_dependencies;
 		bool hasDependency = false;
-		while(cursor != NULL)
+		int i = 0;
+		while(i < graph->size_no_dependencies)
 		{
 			if(check_dependencies(g, cursor->node))
 			{
@@ -216,10 +219,12 @@ DependencyGraph* create_dependency_graph(command_stream_t stream)
 			}
 			
 			cursor = cursor->next;
+			i++;
 		}
 		
 		cursor = graph->dependencies;
-		while(cursor != NULL)
+		i = 0;
+		while(i < graph->size_dependencies)
 		{
 			if(check_dependencies(g, cursor->node))
 			{
@@ -235,12 +240,14 @@ DependencyGraph* create_dependency_graph(command_stream_t stream)
 			}
 			
 			cursor = cursor->next;
+			i++;
 		}
 		
 		if(!hasDependency)
 		{
 			Queue* add = malloc(sizeof(Queue));
-			if(graph->no_dependencies == NULL)
+			add->node = g;
+			if(graph->size_no_dependencies == 0)
 			{
 				graph->no_dependencies = add;
 				graph->no_dependencies_tail = graph->no_dependencies;
@@ -250,11 +257,13 @@ DependencyGraph* create_dependency_graph(command_stream_t stream)
 				graph->no_dependencies_tail->next = add;
 				graph->no_dependencies_tail = graph->no_dependencies_tail->next;
 			}
+			graph->size_no_dependencies += 1;
 		}
 		else
 		{
 			Queue* add = malloc(sizeof(Queue));
-			if(graph->dependencies == NULL)
+			add->node = g;
+			if(graph->size_dependencies == 0)
 			{
 				graph->dependencies = add;
 				graph->dependencies_tail = graph->dependencies;
@@ -264,6 +273,7 @@ DependencyGraph* create_dependency_graph(command_stream_t stream)
 				graph->dependencies_tail->next = add;
 				graph->dependencies_tail = graph->dependencies_tail->next;
 			}
+			graph->size_dependencies += 1;
 		}
 	}
 	
@@ -297,12 +307,13 @@ main (int argc, char **argv)
   FILE *script_stream = fopen (script_name, "r");
   if (! script_stream)
     error (1, errno, "%s: cannot open", script_name);
-  command_stream_t command_stream =
+	command_stream_t command_stream =
     make_command_stream (get_next_byte, script_stream);
+
+	command_t last_command = NULL;
 
 	if(!time_travel)
 	{
-		command_t last_command = NULL;
 		command_t command;
 		while ((command = read_command_stream (command_stream)))
 		{
@@ -323,16 +334,37 @@ main (int argc, char **argv)
 		DependencyGraph *g = create_dependency_graph(command_stream);
 		
 		Queue* cursor = g->no_dependencies;
-		while(cursor != NULL)
+		int i = 0;
+		while(i < g->size_no_dependencies)
 		{
-			cursor->node;
+			cursor->node->pid = fork();
+			last_command = cursor->node->command;
+			if(cursor->node->pid == 0){
+				execute_command(cursor->node->command, time_travel);
+				exit(command_status (last_command));
+			}
 			cursor = cursor->next;
+			i++;
 		}
 		
-		cursor = = g->dependencies;
-		while(cursor != NULL)
+		cursor = g->dependencies;
+		i = 0;
+		while(i < g->size_dependencies)
 		{
-			
+			cursor->node->pid = fork();
+			last_command = cursor->node->command;
+			if(cursor->node->pid == 0){
+				int i = 0;
+				while(i < cursor->node->num_dependencies)
+				{
+					int status;
+					waitpid(cursor->node->before[i]->pid, &status, 0);
+					i++;
+				}
+				execute_command(cursor->node->command, time_travel);
+				exit(command_status (last_command));
+			}
+			i++;
 			cursor = cursor->next;
 		}
 	}
