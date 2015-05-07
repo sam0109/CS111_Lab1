@@ -18,13 +18,6 @@ struct stack //A stack implemented as a linked list to keep track of the command
 	command_t command;
 };
 
-struct command_stream
-{
-    struct command_node *head;
-    struct command_node *tail;
-    struct command_node* cursor;
-};
-
 void
 free_command_t_recursive(command_t to_free)  //A function to clean up the stack when a command isn't necessary
 {

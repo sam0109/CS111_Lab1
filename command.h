@@ -8,8 +8,39 @@
 #include <sys/wait.h>
 #include <fcntl.h>
 
+
 typedef struct command *command_t;
 typedef struct command_stream *command_stream_t;
+
+struct command_stream
+{
+    struct command_node *head;
+    struct command_node *tail;
+    struct command_node* cursor;
+};
+
+typedef struct {
+     command_t command;
+     struct GraphNode** before;
+     char** read_list;
+     int read_size;
+     int max_read_size;
+     char** write_list;
+     int write_size;
+     int max_write_size;
+     pid_t pid; //initialized to 1
+}GraphNode;
+
+typedef struct {
+	GraphNode* above;
+	GraphNode* below;
+}Queue;
+
+typedef struct{
+     Queue* no_dependencies;
+     Queue* dependencies;
+}DependencyGraph;
+
 
 /* Create a command stream from GETBYTE and ARG.  A reader of
    the command stream will invoke GETBYTE (ARG) to get the next byte.
@@ -48,3 +79,5 @@ void SEQUENCEExecuter (command_t input);
 void ANDExecuter (command_t input);
 
 void SUBSHELLExecuter(command_t input);
+
+DependencyGraph create_dependency_graph(command_stream_t stream);
