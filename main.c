@@ -110,20 +110,27 @@ GraphNode* generate_GraphNode(command_t command){
 	return return_graph;
 }
 
+bool check_dependencies(GraphNode* a, GraphNode* b)
+{
+	return true;
+}
+
 DependencyGraph create_dependency_graph(command_stream_t stream)
 {
+	DependencyGraph* graph = malloc(sizeof(DependencyGraph));
+	graph->dependencies = malloc(sizeof(Queue));
+	graph->no_dependencies = malloc(sizeof(Queue));
 	command_t command;
 	while ((command = read_command_stream (stream)))
 	{
-		generate_GraphNode(command);
-		
-		
+		GraphNode* g = generate_GraphNode(command);
+		while(check_dependencies()){
+
+		}
 	}
 	
 	stream->cursor = stream->head;
 	
-	//TODO fix
-	return NULL;
 }
 
 int
