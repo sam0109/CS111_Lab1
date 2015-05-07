@@ -112,7 +112,74 @@ GraphNode* generate_GraphNode(command_t command){
 
 bool check_dependencies( GraphNode* a, GraphNode* b)
 {
-	return true;
+	int i = 0;
+	int j = 0;
+	int k = 0;
+	while(i < a->write_size )
+	{
+		while(j < b->write_size)
+		{
+			bool match = true;
+			while(a->write_list[i][k] != '\0' && b->write_list[j][k] != '\0')
+			{
+				if(a->write_list[i][k] != b->write_list[j][k])
+					match = false;
+				k++;
+			}
+			if(match == true && a->write_list[i][k] == b->write_list[j][k])
+			{
+				return true;
+			}
+			k = 0;
+			j++;
+		}
+		i++;
+	}
+	i = 0;
+	j = 0;
+	while(i < a->read_size )
+	{
+		while(j < b->write_size)
+		{
+			bool match = true;
+			while(a->read_list[i][k] != '\0' && b->write_list[j][k] != '\0')
+			{
+				if(a->read_list[i][k] != b->write_list[j][k])
+					match = false;
+				k++;
+			}
+			if(match == true && a->read_list[i][k] == b->write_list[j][k])
+			{
+				return true;
+			}
+			k = 0;
+			j++;
+		}
+		i++;
+	}
+	i = 0;
+	j = 0;
+	while(i < a->write_size )
+	{
+		while(j < b->read_size)
+		{
+			bool match = true;
+			while(a->write_list[i][k] != '\0' && b->read_list[j][k] != '\0')
+			{
+				if(a->write_list[i][k] != b->read_list[j][k])
+					match = false;
+				k++;
+			}
+			if(match == true && a->write_list[i][k] == b->read_list[j][k])
+			{
+				return true;
+			}
+			k = 0;
+			j++;
+		}
+		i++;
+	}
+	return false;
 }
 
 DependencyGraph create_dependency_graph(command_stream_t stream)
