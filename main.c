@@ -400,19 +400,14 @@ main (int argc, char **argv)
 			i++;
 			cursor = cursor->next;
 		}
-
-		int j = 0;
-
-		while(j < (g->size_dependencies + g->size_no_dependencies))
+		while(waitpid(-1, NULL, 0))
 		{
-			//Make sure parent waits for every child to finish!!!
-			int status = 0;
-			waitpid(pids[j], &status, WEXITED);
-			j++;
-			
-			last_command->status = WEXITSTATUS(status);
+			if(errno == ECHILD)
+			{
+				break;
+			}
 		}
-		
+		last_command->status = WEXITSTATUS(0);
 	}
   return print_tree || !last_command ? 0 : command_status (last_command);
 }

@@ -113,7 +113,7 @@ EOF
 
 ../timetrash testb.sh >testb.out 2>testb.err || exit
 
-../timetrash -t testc.sh 2>testc.err
+../timetrash -t testc.sh 2>testc.err || exit
 
 diff -u test.exp test.out || exit
 test ! -s test.err || {
