@@ -335,6 +335,9 @@ main (int argc, char **argv)
 		
 		Queue* cursor = g->no_dependencies;
 		int i = 0;
+
+		pid_t* pids = malloc(sizeof(int)*(g->size_dependencies + g->size_no_dependencies));
+
 		while(i < g->size_no_dependencies)
 		{
 			cursor->node->pid = fork();
@@ -343,6 +346,8 @@ main (int argc, char **argv)
 				execute_command(cursor->node->command, time_travel);
 				exit(command_status (last_command));
 			}
+
+			pids[i] = cursor->node->pid;
 			cursor = cursor->next;
 			i++;
 		}
@@ -358,16 +363,32 @@ main (int argc, char **argv)
 				while(i < cursor->node->num_dependencies)
 				{
 					int status;
-					waitpid(cursor->node->before[i]->pid, &status, 0);
+					waitpid(cursor->node->before[i]->pid, &status, WEXITED);
 					i++;
 				}
-				execute_command(cursor->node->command, time_travel);
-				exit(command_status (last_command));
+
+				int p = fork();
+
+				if(p == 0)
+				{
+					execute_command(cursor->node->command, time_travel);
+					exit(command_status (last_command));
+				}
+				wait(NULL);
 			}
+			pids[i+ g->size_no_dependencies] = cursor->node->pid;
 			i++;
 			cursor = cursor->next;
 		}
-	}
 
+		int j = 0;
+
+		while(j < (g->size_dependencies + g->size_no_dependencies))
+		{
+			int status = 0;
+			waitpid(pids[j], &status, WEXITED);
+			j++;
+		}
+	}
   return print_tree || !last_command ? 0 : command_status (last_command);
 }
