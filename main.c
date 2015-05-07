@@ -354,8 +354,6 @@ main (int argc, char **argv)
 		Queue* cursor = g->no_dependencies;
 		int i = 0;
 
-		pid_t* pids = malloc(sizeof(int)*(g->size_dependencies + g->size_no_dependencies));
-
 		while(i < g->size_no_dependencies)
 		{
 			//They have no dependencies so they can run wild!
@@ -366,7 +364,6 @@ main (int argc, char **argv)
 				exit(command_status (last_command));
 			}
 
-			pids[i] = cursor->node->pid;
 			cursor = cursor->next;
 			i++;
 		}
@@ -396,18 +393,19 @@ main (int argc, char **argv)
 				}
 				wait(NULL);
 			}
-			pids[i+ g->size_no_dependencies] = cursor->node->pid;
 			i++;
 			cursor = cursor->next;
 		}
-		while(waitpid(-1, NULL, 0))
+		
+		int status;
+		while(waitpid(-1, &status, 0))
 		{
 			if(errno == ECHILD)
 			{
 				break;
 			}
 		}
-		last_command->status = WEXITSTATUS(0);
+		last_command->status = WEXITSTATUS(status);
 	}
   return print_tree || !last_command ? 0 : command_status (last_command);
 }
