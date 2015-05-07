@@ -81,3 +81,5 @@ void ANDExecuter (command_t input);
 void SUBSHELLExecuter(command_t input);
 
 DependencyGraph create_dependency_graph(command_stream_t stream);
+
+bool check_dependencies(GraphNode* a, GraphNode* b);
